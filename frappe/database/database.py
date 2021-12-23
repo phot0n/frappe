@@ -34,9 +34,9 @@ class Database(object):
 
 	OPTIONAL_COLUMNS = ["_user_tags", "_comments", "_assign", "_liked_by"]
 	DEFAULT_SHORTCUTS = ['_Login', '__user', '_Full Name', 'Today', '__today', "now", "Now"]
-	STANDARD_VARCHAR_COLUMNS = ('name', 'owner', 'modified_by', 'parent', 'parentfield', 'parenttype')
-	DEFAULT_COLUMNS = ['name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'parent',
-		'parentfield', 'parenttype', 'idx']
+	STANDARD_VARCHAR_COLUMNS = ('name', 'owner', 'modified_by')
+	DEFAULT_COLUMNS = ['name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus']
+	CHILD_TABLE_COLUMNS = ('parent', 'parenttype', 'parentfield')
 	MAX_WRITES_PER_TRANSACTION = 200_000
 
 	class InvalidColumnName(frappe.ValidationError): pass

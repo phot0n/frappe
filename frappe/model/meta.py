@@ -18,7 +18,7 @@ from datetime import datetime
 import click
 import frappe, json, os
 from frappe.utils import cstr, cint, cast
-from frappe.model import default_fields, no_value_fields, optional_fields, data_fieldtypes, table_fields
+from frappe.model import default_fields, no_value_fields, optional_fields, data_fieldtypes, table_fields, child_table_fields
 from frappe.model.document import Document
 from frappe.model.base_document import BaseDocument
 from frappe.modules import load_doctype_module
@@ -181,6 +181,8 @@ class Meta(Document):
 			else:
 				self._valid_columns = self.default_fields + \
 					[df.fieldname for df in self.get("fields") if df.fieldtype in data_fieldtypes]
+				if self.istable:
+					self._valid_columns += list(child_table_fields)
 
 		return self._valid_columns
 
