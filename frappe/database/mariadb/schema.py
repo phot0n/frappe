@@ -7,6 +7,7 @@ class MariaDBTable(DBTable):
 		additional_definitions = ""
 		engine = self.meta.get("engine") or "InnoDB"
 		varchar_len = frappe.db.VARCHAR_LEN
+		is_child_table = self.meta.get("istable") or 0
 
 		# columns
 		column_defs = self.get_column_definitions()
