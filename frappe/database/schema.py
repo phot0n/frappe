@@ -106,6 +106,9 @@ class DBTable:
 
 		columns = [frappe._dict({"fieldname": f, "fieldtype": "Data"}) for f in
 			frappe.db.STANDARD_VARCHAR_COLUMNS]
+		if self.meta.get("istable") or 0:
+			columns += [frappe._dict({"fieldname": f, "fieldtype": "Data"}) for f in
+				frappe.db.CHILD_TABLE_COLUMNS]
 		columns += self.columns.values()
 
 		for col in columns:
