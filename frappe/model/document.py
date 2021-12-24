@@ -1380,10 +1380,12 @@ class Document(BaseDocument):
 		name = self.name or "unsaved"
 		doctype = self.__class__.__name__
 
-		docstatus = f" docstatus={self.docstatus}" if hasattr(self, "docstatus") else ""
-		parent = f" parent={self.parent}" if hasattr(self, "parent") else ""
+		docstatus = f" docstatus={self.docstatus}" if self.docstatus else ""
+		repr_str = f"<{doctype}: {name}{docstatus}"
 
-		return f"<{doctype}: {name}{docstatus}{parent}>"
+		if not hasattr(self, "parent"):
+			return repr_str + ">"
+		return f"{repr_str} parent={self.parent}>"
 
 	def __str__(self):
 		name = self.name or "unsaved"
