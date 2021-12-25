@@ -94,7 +94,7 @@ def handle():
 						"data": doc.save().as_dict()
 					})
 
-					if doc.parenttype and doc.parent:
+					if hasattr(doc, "parenttype") and hasattr(doc, "parent"):
 						frappe.get_doc(doc.parenttype, doc.parent).save()
 
 					frappe.db.commit()

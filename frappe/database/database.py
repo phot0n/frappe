@@ -432,11 +432,9 @@ class Database(object):
 
 		else:
 			fields = fieldname
-			if fieldname!="*":
+			if fieldname != "*":
 				if isinstance(fieldname, str):
 					fields = [fieldname]
-				else:
-					fields = fieldname
 
 			if (filters is not None) and (filters!=doctype or doctype=="DocType"):
 				try:
