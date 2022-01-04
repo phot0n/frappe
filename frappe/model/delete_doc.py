@@ -229,10 +229,10 @@ def check_if_doc_is_linked(doc, method="Delete"):
 	for link_dt, link_field, issingle in link_fields:
 		if not issingle:
 			fields = ["name", "docstatus"]
-			if frappe.get_meta(link_dt).istable or link_dt in DOCTYPES_FOR_DOCTYPE:
+			if frappe.get_meta(link_dt).istable:
 				fields.extend(["parent", "parenttype"])
 
-			# scenario: parent -> child table -> linked doc
+			# NOTE: scenario: parent doc <- child table doc <- linked doc
 			for item in frappe.db.get_values(link_dt, {link_field:doc.name}, fields , as_dict=True):
 				item_parent = getattr(item, "parent", None)
 				linked_doctype = item.parenttype if item_parent else link_dt

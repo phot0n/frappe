@@ -864,8 +864,10 @@ def extract_images_from_html(doc, content, is_private=False):
 		else:
 			filename = get_random_filename(content_type=mtype)
 
-		doctype = doc.parenttype if doc.parent else doc.doctype
-		name = doc.parent or doc.name
+		# attaching an image to a child table doc will attach it to the parent doc
+		parent_doc = getattr(doc, "parent", None)
+		doctype = doc.parenttype if parent_doc else doc.doctype
+		name = parent_doc or doc.name
 
 		_file = frappe.get_doc({
 			"doctype": "File",

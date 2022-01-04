@@ -534,7 +534,7 @@ def get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled=F
 
 	# find dynamic links of parents
 	links = frappe.get_all("DocField", fields=["parent as doctype", "fieldname", "options as doctype_fieldname"], filters=filters)
-	links+= frappe.get_all("Custom Field", fields=["dt as doctype", "fieldname", "options as doctype_fieldname"], filters=filters)
+	links += frappe.get_all("Custom Field", fields=["dt as doctype", "fieldname", "options as doctype_fieldname"], filters=filters)
 
 	for df in links:
 		if is_single(df.doctype): continue
