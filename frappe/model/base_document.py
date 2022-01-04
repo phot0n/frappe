@@ -743,7 +743,7 @@ class BaseDocument(object):
 
 
 	def throw_length_exceeded_error(self, df, max_length, value):
-		if self.parentfield and self.idx:
+		if getattr(self, "parentfield", None) and getattr(self, "idx", None):
 			reference = _("{0}, Row {1}").format(_(self.doctype), self.idx)
 
 		else:

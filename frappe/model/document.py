@@ -526,7 +526,7 @@ class Document(BaseDocument):
 
 	def _validate_non_negative(self):
 		def get_msg(df):
-			if self.parentfield:
+			if getattr(self, "parentfield", None):
 				return "{} {} #{}: {} {}".format(frappe.bold(_(self.doctype)),
 					_("Row"), self.idx, _("Value cannot be negative for"), frappe.bold(_(df.label)))
 			else:
