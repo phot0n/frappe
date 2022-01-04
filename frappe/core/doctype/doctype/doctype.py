@@ -74,6 +74,7 @@ class DocType(Document):
 		self.make_amendable()
 		self.make_repeatable()
 		self.validate_nestedset()
+		self.validate_child_table()
 		self.validate_website()
 		self.ensure_minimum_max_attachment_limit()
 		validate_links_table_fieldnames(self)
@@ -688,6 +689,20 @@ class DocType(Document):
 			"fieldname": parent_field_name
 		})
 		self.nsm_parent_field = parent_field_name
+
+	def validate_child_table(self):
+		if not self.get("istable"):
+			return
+
+		self.add_child_table_fields()
+
+	def add_child_table_fields(self):
+		from frappe.database.schema import add_column
+
+		add_column(self.name, "parent", "Data")
+		add_column(self.name, "parenttype", "Data")
+		add_column(self.name, "parentfield", "Data")
+		add_column(self.name, "idx", "Int", not_null=True, default="0")
 
 	def get_max_idx(self):
 		"""Returns the highest `idx`"""
