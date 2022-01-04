@@ -503,7 +503,7 @@ class BaseDocument(object):
 			if df.fieldtype in table_fields:
 				return "{}: {}: {}".format(_("Error"), _("Data missing in table"), _(df.label))
 
-			elif self.parentfield:
+			elif getattr(self, "parentfield", None):
 				return "{}: {} {} #{}: {}: {}".format(_("Error"), frappe.bold(_(self.doctype)),
 					_("Row"), self.idx, _("Value missing for"), _(df.label))
 
