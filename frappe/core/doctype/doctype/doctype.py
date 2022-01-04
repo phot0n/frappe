@@ -691,7 +691,7 @@ class DocType(Document):
 		self.nsm_parent_field = parent_field_name
 
 	def validate_child_table(self):
-		if not self.get("istable"):
+		if not self.get("istable") or self.is_new():
 			return
 
 		self.add_child_table_fields()
