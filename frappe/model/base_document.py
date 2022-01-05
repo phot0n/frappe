@@ -503,7 +503,7 @@ class BaseDocument(object):
 			if df.fieldtype in table_fields:
 				return "{}: {}: {}".format(_("Error"), _("Data missing in table"), _(df.label))
 
-			elif getattr(self, "parentfield", None):
+			elif hasattr(self, "parentfield"):
 				return "{}: {} {} #{}: {}: {}".format(_("Error"), frappe.bold(_(self.doctype)),
 					_("Row"), self.idx, _("Value missing for"), _(df.label))
 
@@ -527,7 +527,7 @@ class BaseDocument(object):
 	def get_invalid_links(self, is_submittable=False):
 		"""Returns list of invalid links and also updates fetch values if not set"""
 		def get_msg(df, docname):
-			if self.parentfield:
+			if hasattr(self, "parentfield"):
 				return "{} #{}: {}: {}".format(_("Row"), self.idx, _(df.label), docname)
 			else:
 				return "{}: {}".format(_(df.label), docname)
@@ -743,7 +743,7 @@ class BaseDocument(object):
 
 
 	def throw_length_exceeded_error(self, df, max_length, value):
-		if getattr(self, "parentfield", None) and getattr(self, "idx", None):
+		if hasattr(self, "parentfield"):
 			reference = _("{0}, Row {1}").format(_(self.doctype), self.idx)
 
 		else:
