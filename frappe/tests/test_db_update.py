@@ -109,8 +109,7 @@ def get_other_fields_meta(meta):
 
 	child_table_fields_map = {}
 	if meta.istable:
-		child_table_fields = frappe.db.CHILD_TABLE_COLUMNS
-		child_table_fields_map.update({field: ('Data', 0) for field in child_table_fields})
+		child_table_fields_map.update({field: ('Data', 0) for field in frappe.db.CHILD_TABLE_COLUMNS})
 		child_table_fields_map.update({'idx': ('Int', 8)})
 
 	optional_fields_map = {field: ('Text', 0) for field in optional_fields}

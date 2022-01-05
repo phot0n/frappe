@@ -539,24 +539,27 @@ def get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled=F
 	for df in links:
 		if is_single(df.doctype): continue
 
-		# optimized to get both link exists and parenttype
-		possible_link = frappe.get_all(df.doctype, filters={df.doctype_fieldname: doctype},
-		fields=['parenttype'], distinct=True)
+		is_child = frappe.get_meta(df.doctype).istable
+		possible_link = frappe.get_all(
+			df.doctype,
+			filters={df.doctype_fieldname: doctype},
+			fields=["parenttype"] if is_child else None,
+			distinct=True
+		)
 
 		if not possible_link: continue
 
-		for d in possible_link:
-			# is child
-			if d.parenttype:
+		if is_child:
+			for d in possible_link:
 				ret[d.parenttype] = {
 					"child_doctype": df.doctype,
 					"fieldname": [df.fieldname],
 					"doctype_fieldname": df.doctype_fieldname
 				}
-			else:
-				ret[df.doctype] = {
-					"fieldname": [df.fieldname],
-					"doctype_fieldname": df.doctype_fieldname
-				}
+		else:
+			ret[df.doctype] = {
+				"fieldname": [df.fieldname],
+				"doctype_fieldname": df.doctype_fieldname
+			}
 
 	return ret
