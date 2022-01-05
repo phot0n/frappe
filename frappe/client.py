@@ -142,11 +142,13 @@ def set_value(doctype, name, fieldname, value=None):
 	else:
 		values = {fieldname: value}
 
-	doc = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
-	if doc and doc.parent and doc.parenttype:
-		doc = frappe.get_doc(doc.parenttype, doc.parent)
-		child = doc.getone({"doctype": doctype, "name": name})
-		child.update(values)
+	# check for child table doctype
+	if frappe.get_meta(doctype).istable:
+		doc = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
+		if doc:
+			doc = frappe.get_doc(doc.parenttype, doc.parent)
+			child = doc.getone({"doctype": doctype, "name": name})
+			child.update(values)
 	else:
 		doc = frappe.get_doc(doctype, name)
 		doc.update(values)
