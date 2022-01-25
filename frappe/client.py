@@ -129,7 +129,7 @@ def set_value(doctype, name, fieldname, value=None):
 	:param fieldname: fieldname string or JSON / dict with key value pair
 	:param value: value if fieldname is JSON / dict'''
 
-	if fieldname!="idx" and fieldname in frappe.model.default_fields:
+	if fieldname in (frappe.model.default_fields + frappe.model.child_table_fields):
 		frappe.throw(_("Cannot edit standard fields"))
 
 	if not value:
@@ -143,15 +143,18 @@ def set_value(doctype, name, fieldname, value=None):
 		values = {fieldname: value}
 
 	# check for child table doctype
-	if frappe.get_meta(doctype).istable:
+	if not frappe.get_meta(doctype).istable:
+		doc = frappe.get_doc(doctype, name)
+		doc.update(values)
+	else:
 		doc = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
 		if doc:
 			doc = frappe.get_doc(doc.parenttype, doc.parent)
 			child = doc.getone({"doctype": doctype, "name": name})
 			child.update(values)
-	else:
-		doc = frappe.get_doc(doctype, name)
-		doc.update(values)
+		else:
+			doc = frappe.get_doc(doctype, name)
+			doc.update(values)
 
 	doc.save()
 
