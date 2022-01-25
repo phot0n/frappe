@@ -503,12 +503,12 @@ class BaseDocument(object):
 			if df.fieldtype in table_fields:
 				return "{}: {}: {}".format(_("Error"), _("Data missing in table"), _(df.label))
 
-			elif hasattr(self, "parentfield"):
+			# check if parentfield exists (only applicable for child table doctype)
+			elif self.get("parentfield"):
 				return "{}: {} {} #{}: {}: {}".format(_("Error"), frappe.bold(_(self.doctype)),
 					_("Row"), self.idx, _("Value missing for"), _(df.label))
 
-			else:
-				return _("Error: Value missing for {0}: {1}").format(_(df.parent), _(df.label))
+			return _("Error: Value missing for {0}: {1}").format(_(df.parent), _(df.label))
 
 		missing = []
 
@@ -527,10 +527,11 @@ class BaseDocument(object):
 	def get_invalid_links(self, is_submittable=False):
 		"""Returns list of invalid links and also updates fetch values if not set"""
 		def get_msg(df, docname):
-			if hasattr(self, "parentfield"):
+			# check if parentfield exists (only applicable for child table doctype)
+			if self.get("parentfield"):
 				return "{} #{}: {}: {}".format(_("Row"), self.idx, _(df.label), docname)
-			else:
-				return "{}: {}".format(_(df.label), docname)
+
+			return "{}: {}".format(_(df.label), docname)
 
 		invalid_links = []
 		cancelled_links = []
@@ -743,9 +744,9 @@ class BaseDocument(object):
 
 
 	def throw_length_exceeded_error(self, df, max_length, value):
-		if hasattr(self, "parentfield"):
+		# check if parentfield exists (only applicable for child table doctype)
+		if self.get("parentfield"):
 			reference = _("{0}, Row {1}").format(_(self.doctype), self.idx)
-
 		else:
 			reference = "{0} {1}".format(_(self.doctype), self.name)
 
