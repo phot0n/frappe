@@ -389,8 +389,6 @@ def get_linked_docs(doctype, name, linkinfo=None, for_doctype=None):
 		else:
 			return results
 
-	me = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
-
 	for dt, link in linkinfo.items():
 		filters = []
 		link["doctype"] = dt
@@ -413,11 +411,14 @@ def get_linked_docs(doctype, name, linkinfo=None, for_doctype=None):
 					ret = frappe.get_all(doctype=dt, fields=fields, filters=link.get("filters"))
 
 				elif link.get("get_parent"):
-					if me and me.parent and me.parenttype == dt:
+					ret = None
+					if not linkmeta.get("istable"):
+						continue
+
+					me = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
+					if me and me.parenttype == dt:
 						ret = frappe.get_all(doctype=dt, fields=fields,
 							filters=[[dt, "name", '=', me.parent]])
-					else:
-						ret = None
 
 				elif link.get("child_doctype"):
 					or_filters = [[link.get('child_doctype'), link_fieldnames, '=', name] for link_fieldnames in link.get("fieldname")]
@@ -473,7 +474,7 @@ def _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False)
 	ret.update(get_linked_fields(doctype, without_ignore_user_permissions_enabled))
 	ret.update(get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled))
 
-	filters=[['fieldtype', 'in', frappe.model.table_fields], ['options', '=', doctype]]
+	filters = [['fieldtype', 'in', frappe.model.table_fields], ['options', '=', doctype]]
 	if without_ignore_user_permissions_enabled: filters.append(['ignore_user_permissions', '!=', 1])
 	# find links of parents
 	links = frappe.get_all("DocField", fields=["parent as dt"], filters=filters)
@@ -498,12 +499,12 @@ def _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False)
 
 def get_linked_fields(doctype, without_ignore_user_permissions_enabled=False):
 
-	filters=[['fieldtype','=', 'Link'], ['options', '=', doctype]]
+	filters = [['fieldtype','=', 'Link'], ['options', '=', doctype]]
 	if without_ignore_user_permissions_enabled: filters.append(['ignore_user_permissions', '!=', 1])
 
 	# find links of parents
 	links = frappe.get_all("DocField", fields=["parent", "fieldname"], filters=filters, as_list=1)
-	links+= frappe.get_all("Custom Field", fields=["dt as parent", "fieldname"], filters=filters, as_list=1)
+	links += frappe.get_all("Custom Field", fields=["dt as parent", "fieldname"], filters=filters, as_list=1)
 
 	ret = {}
 
@@ -529,7 +530,7 @@ def get_linked_fields(doctype, without_ignore_user_permissions_enabled=False):
 def get_dynamic_linked_fields(doctype, without_ignore_user_permissions_enabled=False):
 	ret = {}
 
-	filters=[['fieldtype','=', 'Dynamic Link']]
+	filters = [['fieldtype','=', 'Dynamic Link']]
 	if without_ignore_user_permissions_enabled: filters.append(['ignore_user_permissions', '!=', 1])
 
 	# find dynamic links of parents
