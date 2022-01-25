@@ -1223,11 +1223,7 @@ class Document(BaseDocument):
 				doc.meta.get("fields", {"fieldtype": ["in", ["Currency", "Float", "Percent"]]}))
 
 		for fieldname in fieldnames:
-<<<<<<< HEAD
 			doc.set(fieldname, flt(doc.get(fieldname), self.precision(fieldname, doc.get("parentfield"))))
-=======
-			doc.set(fieldname, flt(doc.get(fieldname), self.precision(fieldname, getattr(doc, "parentfield", None))))
->>>>>>> 354951623f (debug)
 
 	def get_url(self):
 		"""Returns Desk URL for this document."""
