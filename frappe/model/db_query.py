@@ -474,7 +474,7 @@ class DatabaseQuery(object):
 				}, order_by='`lft` DESC')
 
 			fallback = "''"
-			value = [frappe.db.escape((v.name or '').strip(), percent=False) for v in result]
+			value = [frappe.db.escape((cstr(v.name) or '').strip(), percent=False) for v in result]
 			if len(value):
 				value = f"({', '.join(value)})"
 			else:
@@ -490,7 +490,7 @@ class DatabaseQuery(object):
 				values = values.split(",")
 
 			fallback = "''"
-			value = [frappe.db.escape((v or '').strip(), percent=False) for v in values]
+			value = [frappe.db.escape((cstr(v) or '').strip(), percent=False) for v in values]
 			if len(value):
 				value = f"({', '.join(value)})"
 			else:

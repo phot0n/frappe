@@ -6,6 +6,7 @@ from frappe.database.schema import DBTable, get_definition
 class PostgresTable(DBTable):
 	def create(self):
 		varchar_len = frappe.db.VARCHAR_LEN
+		name_column = "name varchar({varchar_len}) not null primary key"
 
 		additional_definitions = ""
 		# columns
@@ -28,7 +29,7 @@ class PostgresTable(DBTable):
 
 		# create table
 		frappe.db.sql(f"""create table `{self.table_name}` (
-			name varchar({varchar_len}) not null primary key,
+			{name_column},
 			creation timestamp(6),
 			modified timestamp(6),
 			modified_by varchar({varchar_len}),

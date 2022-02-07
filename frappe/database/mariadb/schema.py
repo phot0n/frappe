@@ -1,12 +1,15 @@
 import frappe
 from frappe import _
 from frappe.database.schema import DBTable
+from frappe.model import log_types
+
 
 class MariaDBTable(DBTable):
 	def create(self):
 		additional_definitions = ""
 		engine = self.meta.get("engine") or "InnoDB"
 		varchar_len = frappe.db.VARCHAR_LEN
+		name_column = f"name varchar({varchar_len}) not null primary key"
 
 		# columns
 		column_defs = self.get_column_definitions()
@@ -29,9 +32,25 @@ class MariaDBTable(DBTable):
 				)
 			) + ',\n'
 
+		if (not self.meta.issingle \
+			and self.meta.autoname == "autoincrement") or self.doctype in log_types:
+
+			# sequences are only available in mariadb >= 10.3
+			seq_name = f"`{self.doctype}_id_seq`"
+			try:
+				frappe.db.sql(f"create sequence {seq_name}")
+			except Exception as e:
+				if e.args[0] == 1050:
+					# if a sequence is already created for the doctype, just reset it
+					frappe.db.sql(f"alter sequence {seq_name} restart with 1")
+				else:
+					raise
+
+			name_column = f"name bigint primary key default (next value for {seq_name})"
+
 		# create table
 		query = f"""create table `{self.table_name}` (
-			name varchar({varchar_len}) not null primary key,
+			{name_column},
 			creation datetime(6),
 			modified datetime(6),
 			modified_by varchar({varchar_len}),

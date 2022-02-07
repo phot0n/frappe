@@ -21,19 +21,45 @@ def set_new_name(doc):
 
 	:param doc: Document to be named.
 	"""
+	from frappe.model.base_document import DOCTYPES_FOR_DOCTYPE
 
 	doc.run_method("before_naming")
 
-	autoname = frappe.get_meta(doc.doctype).autoname or ""
+	meta = frappe.get_meta(doc.doctype)
+	autoname = meta.autoname or ""
 
 	if autoname.lower() != "prompt" and not frappe.flags.in_import:
 		doc.name = None
+
+	is_single = getattr(doc.meta, "issingle", False)
+
+	if (not is_single \
+		and doc.doctype not in DOCTYPES_FOR_DOCTYPE \
+		and autoname == "autoincrement") or doc.doctype in log_types:
+
+		if frappe.db.sql(
+			f"""select data_type FROM information_schema.columns
+			where column_name = 'name' and table_name = 'tab{doc.doctype}'"""
+		)[0][0] == "bigint":
+
+			next_val = frappe.db.sql(f"select nextval(`{doc.doctype}_id_seq`)")[0][0]
+			# TODO: this method might not work in concurrent executions
+			# last_inserted_name = frappe.db.sql(f"select max(name) from `tab{doc.doctype}`")[0]
+			# if last_inserted_name:
+			# 	if last_inserted_name[0] + 1 == next_val:
+					# doc.name = next_val
+				# else:
+					# doc.name = last_inserted_name[0] + 1
+			# else:
+			doc.name = next_val
+
+			return
 
 	if getattr(doc, "amended_from", None):
 		_set_amended_name(doc)
 		return
 
-	elif getattr(doc.meta, "issingle", False):
+	elif is_single:
 		doc.name = doc.doctype
 
 	elif getattr(doc.meta, "istable", False):

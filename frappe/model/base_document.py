@@ -432,6 +432,8 @@ class BaseDocument(object):
 			ignore_virtual=True,
 		)
 
+		if not self.name: print(self.doctype)
+
 		columns = list(d)
 		try:
 			frappe.db.sql("""INSERT INTO `tab{doctype}` ({columns})
@@ -475,7 +477,7 @@ class BaseDocument(object):
 		d = self.get_valid_dict(convert_dates_to_str=True, ignore_nulls = self.doctype in DOCTYPES_FOR_DOCTYPE)
 
 		# don't update name, as case might've been changed
-		name = d['name']
+		name = cstr(d['name'])
 		del d['name']
 
 		columns = list(d)
