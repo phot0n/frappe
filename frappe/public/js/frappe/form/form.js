@@ -1508,7 +1508,7 @@ frappe.ui.form.Form = class FrappeForm {
 						// update child doc
 						opts.child = locals[opts.child.doctype][opts.child.name];
 
-						var std_field_list = ["doctype"].concat(frappe.model.std_fields_list);
+						var std_field_list = ["doctype", ...frappe.model.std_fields_list, ...frappe.model.child_table_field_list];
 						for (var key in r.message) {
 							if (std_field_list.indexOf(key)===-1) {
 								opts.child[key] = r.message[key];
