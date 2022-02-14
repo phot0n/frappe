@@ -37,16 +37,19 @@ class MariaDBTable(DBTable):
 
 			# sequences are only available in mariadb >= 10.3
 			seq_name = f"`{self.doctype}_id_seq`"
-			try:
-				frappe.db.sql(f"create sequence {seq_name}")
-			except Exception as e:
-				if e.args[0] == 1050:
-					# if a sequence is already created for the doctype, just reset it
-					frappe.db.sql(f"alter sequence {seq_name} restart with 1")
-				else:
-					raise
 
-			name_column = f"name bigint primary key default (next value for {seq_name})"
+			# NOTE: using nocache as during backup, if the sequence was used in anyform,
+			# it drops the cache (which by default is 1000) and uses the next non cached value
+			# in setval func and puts that in the backup file (if default, it will be 1001)
+			# which will start the counter from that value when inserting any new record
+			# in the doctype.
+			# ref: https://jira.mariadb.org/browse/MDEV-21786
+			frappe.db.sql(f"create sequence if not exists {seq_name} nocache")
+
+			# NOTE: not used nextval func as default as the ability to restore
+			# database with sequences has bugs in mariadb and gives a scary error.
+			# ref: https://jira.mariadb.org/browse/MDEV-21786
+			name_column = "name bigint primary key"
 
 		# create table
 		query = f"""create table `{self.table_name}` (
