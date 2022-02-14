@@ -208,7 +208,7 @@ class FrappeClient(object):
 		if fields:
 			params["fields"] = json.dumps(fields)
 
-		res = self.session.get(self.url + "/api/resource/" + doctype + "/" + name,
+		res = self.session.get(self.url + "/api/resource/" + doctype + "/" + cstr(name),
 			params=params, verify=self.verify, headers=self.headers)
 
 		return self.post_process(res)
