@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.database.schema import DBTable
+from frappe.database.sequence import create_sequence
 from frappe.model import log_types
 
 
@@ -32,23 +33,20 @@ class MariaDBTable(DBTable):
 				)
 			) + ',\n'
 
+		# creating sequence(s)
 		if (not self.meta.issingle \
 			and self.meta.autoname == "autoincrement") or self.doctype in log_types:
 
-			# sequences are only available in mariadb >= 10.3
-			seq_name = f"`{self.doctype}_id_seq`"
-
-			# NOTE: using nocache as during backup, if the sequence was used in anyform,
-			# it drops the cache (which by default is 1000) and uses the next non cached value
-			# in setval func and puts that in the backup file (if default, it will be 1001)
-			# which will start the counter from that value when inserting any new record
-			# in the doctype.
-			# ref: https://jira.mariadb.org/browse/MDEV-21786
-			frappe.db.sql(f"create sequence if not exists {seq_name} nocache")
+			# NOTE: using nocache - as during backup, if the sequence was used in anyform,
+			# it drops the cache and uses the next non cached value in setval func and
+			# puts that in the backup file, which will start the counter
+			# from that value when inserting any new record in the doctype.
+			# issue link: https://jira.mariadb.org/browse/MDEV-21786
+			create_sequence(self.doctype, check_not_exists=True)
 
 			# NOTE: not used nextval func as default as the ability to restore
 			# database with sequences has bugs in mariadb and gives a scary error.
-			# ref: https://jira.mariadb.org/browse/MDEV-21786
+			# issue link: https://jira.mariadb.org/browse/MDEV-21786
 			name_column = "name bigint primary key"
 
 		# create table

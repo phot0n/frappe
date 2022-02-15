@@ -4,6 +4,7 @@
 from typing import Optional
 import frappe
 from frappe import _
+from frappe.database.sequence import get_next_val
 from frappe.utils import now_datetime, cint, cstr
 import re
 from frappe.model import log_types
@@ -37,12 +38,13 @@ def set_new_name(doc):
 		and doc.doctype not in DOCTYPES_FOR_DOCTYPE \
 		and autoname == "autoincrement") or doc.doctype in log_types:
 
+		# TODO: cache this value
 		if frappe.db.sql(
 			f"""select data_type FROM information_schema.columns
 			where column_name = 'name' and table_name = 'tab{doc.doctype}'"""
 		)[0][0] == "bigint":
 
-			next_val = frappe.db.sql(f"select nextval(`{doc.doctype}_id_seq`)")[0][0]
+			next_val = get_next_val(doc.doctype)
 			# TODO: this method might not work in concurrent executions
 			# last_inserted_name = frappe.db.sql(f"select max(name) from `tab{doc.doctype}`")[0]
 			# if last_inserted_name:
