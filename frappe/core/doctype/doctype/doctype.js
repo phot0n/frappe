@@ -64,8 +64,6 @@ frappe.ui.form.on('DocType', {
 	naming_rule: function(frm) {
 		// set the "autoname" property based on naming_rule
 		if (frm.doc.naming_rule && !frm.__from_autoname) {
-			// set allow_rename true when changing the naming rule
-			frm.set_value('allow_rename', 1);
 
 			// flag to avoid recursion
 			frm.__from_naming_rule = true;
@@ -97,7 +95,7 @@ frappe.ui.form.on('DocType', {
 	set_naming_rule_description(frm) {
 		let naming_rule_description = {
 			'Set by user': '',
-			'Autoincrement': 'Uses Auto Increment feature of database',
+			'Autoincrement': 'Uses Auto Increment feature of database.<br><b>WARNING: After using this option, any other naming option will not be accessible.</b>',
 			'By fieldname': 'Format: <code>field:[fieldname]</code>. Valid fieldname must exist',
 			'By "Naming Series" field': 'Format: <code>naming_series:[fieldname]</code>. Fieldname called <code>naming_series</code> must exist',
 			'Expression': 'Format: <code>format:EXAMPLE-{MM}morewords{fieldname1}-{fieldname2}-{#####}</code> - Replace all braced words (fieldnames, date words (DD, MM, YY), series) with their value. Outside braces, any characters can be used.',

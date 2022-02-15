@@ -61,6 +61,7 @@ class DocType(Document):
 		self.check_developer_mode()
 
 		self.validate_name()
+		self.validate_autoname()
 
 		self.set_defaults_for_single_and_table()
 		self.scrub_field_names()
@@ -713,6 +714,14 @@ class DocType(Document):
 		max_idx = frappe.db.sql("""select max(idx) from `tabDocField` where parent = %s""",
 			self.name)
 		return max_idx and max_idx[0][0] or 0
+
+	def validate_autoname(self):
+		if not self.is_new():
+			doc_before_save = self.get_doc_before_save()
+			if doc_before_save:
+				if (self.autoname == "autoincrement" and doc_before_save.autoname != "autoincrement") \
+					or (self.autoname != "autoincrement" and doc_before_save.autoname == "autoincrement"):
+					frappe.throw("Cannot change to/from Autoincrement naming rule")
 
 	def validate_name(self, name=None):
 		if not name:
