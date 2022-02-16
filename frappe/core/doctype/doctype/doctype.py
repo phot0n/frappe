@@ -724,7 +724,10 @@ class DocType(Document):
 					frappe.throw("Cannot change to/from Autoincrement naming rule")
 
 		else:
-			if self.autoname == "autoincrement" or (self.istable and self.name not in DOCTYPES_FOR_DOCTYPE):
+			if self.autoname == "autoincrement" or self.istable:
+				self.autoname = "autoincrement"
+				self.allow_rename = 0
+
 				# push the doctype to cache
 				frappe.cache().lpush("autoincrement_doctypes", self.name)
 

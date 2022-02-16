@@ -61,6 +61,13 @@ frappe.ui.form.on('DocType', {
 		frm.events.set_naming_rule_description(frm);
 	},
 
+	istable: (frm) => {
+		if (frm.doc.istable && frm.is_new()) {
+			frm.set_value('autoname', 'autoincrement')
+			frm.set_value('allow_rename', 0);
+		}
+	},
+
 	naming_rule: function(frm) {
 		// set the "autoname" property based on naming_rule
 		if (frm.doc.naming_rule && !frm.__from_autoname) {

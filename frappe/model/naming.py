@@ -35,8 +35,7 @@ def set_new_name(doc):
 	is_single = getattr(doc.meta, "issingle", False)
 	is_table = getattr(doc.meta, "istable", False)
 
-	if ((not is_single and autoname == "autoincrement") or is_table) \
-		and doc.doctype not in DOCTYPES_FOR_DOCTYPE or doc.doctype in log_types:
+	if (((not is_single and autoname == "autoincrement") or is_table) and doc.doctype not in DOCTYPES_FOR_DOCTYPE) or doc.doctype in log_types:
 
 		if not frappe.flags.in_install:
 			if doc.doctype.encode() in frappe.cache().lrange("autoincrement_doctypes", 0, -1):
