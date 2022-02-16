@@ -38,6 +38,7 @@ def set_new_name(doc):
 	if (((not is_single and autoname == "autoincrement") or is_table) and doc.doctype not in DOCTYPES_FOR_DOCTYPE) or doc.doctype in log_types:
 
 		if not frappe.flags.in_install:
+			# TODO: lrange is a o(n) operation, use a better datastructure
 			if doc.doctype.encode() in frappe.cache().lrange("autoincrement_doctypes", 0, -1):
 				next_val = get_next_val(doc.doctype)
 				doc.name = next_val

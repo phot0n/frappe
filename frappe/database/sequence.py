@@ -1,8 +1,5 @@
-from frappe import db
+from frappe import db, conf, scrub
 
-
-
-# NOTE: sequences are only available in mariadb >= 10.3
 
 def create_sequence(
 	doctype_name: str,
@@ -22,12 +19,14 @@ def create_sequence(
 	if check_not_exists:
 		query += " if not exists"
 
-	query += f" `{doctype_name}{slug}`"
+	query += f" {scrub(doctype_name + slug)}"
 
 	if cache:
 		query += f" cache {cache}"
-	elif cache == 0:
-		query += " nocache"
+	else:
+		# in postgres, the default is cache 1
+		if conf.db_type == "mariadb":
+			query += " nocache"
 
 	if start_value:
 		# default is 1
@@ -45,13 +44,18 @@ def create_sequence(
 		query += f" max value {max_value}"
 
 	if not cycle:
-		query += " nocycle"
+		if conf.db_type == "mariadb":
+			query += " nocycle"
+	else:
+		query += " cycle"
 
 	db.sql(query)
 
 
 def get_next_val(doctype_name: str, slug: str="_id_seq") -> int:
-	return db.sql(f"select nextval(`{doctype_name}{slug}`)")[0][0]
+	if conf.db_type == "postgres":
+		return db.sql(f"select nextval(\'\"{scrub(doctype_name + slug)}\"\')")[0][0]
+	return db.sql(f"select nextval(`{scrub(doctype_name + slug)}`)")[0][0]
 
 
 def set_next_val(
@@ -63,4 +67,7 @@ def set_next_val(
 ) -> None:
 
 	is_val_used = 0 if not is_val_used else 1
-	db.sql(f"SELECT SETVAL(`{doctype_name}{slug}`, {next_val}, {is_val_used})")
+	if conf.db_type == "postgres":
+		db.sql(f"SELECT SETVAL(\'\"{scrub(doctype_name + slug)}\"\', {next_val}, {is_val_used})")
+	else:
+		db.sql(f"SELECT SETVAL(`{scrub(doctype_name + slug)}`, {next_val}, {is_val_used})")

@@ -2,6 +2,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 from frappe.database.schema import DBTable, get_definition
+from frappe.database.sequence import create_sequence
+from frappe.model import log_types
+
 
 class PostgresTable(DBTable):
 	def create(self):
@@ -27,6 +30,14 @@ class PostgresTable(DBTable):
 				)
 			)
 
+		# creating sequence(s)
+		if (not self.meta.issingle \
+			and self.meta.autoname == "autoincrement") or self.meta.istable or self.doctype in log_types:
+
+			create_sequence(self.doctype, check_not_exists=True, cache=50)
+			name_column = "name bigint primary key"
+
+		# TODO: set docstatus length
 		# create table
 		frappe.db.sql(f"""create table `{self.table_name}` (
 			{name_column},
