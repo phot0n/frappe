@@ -723,6 +723,11 @@ class DocType(Document):
 					or (self.autoname != "autoincrement" and doc_before_save.autoname == "autoincrement"):
 					frappe.throw("Cannot change to/from Autoincrement naming rule")
 
+		else:
+			if self.autoname == "autoincrement":
+				# push the doctype to cache
+				frappe.cache().lpush("autoincrement_doctypes", self.name)
+
 	def validate_name(self, name=None):
 		if not name:
 			name = self.name

@@ -38,23 +38,19 @@ def set_new_name(doc):
 		and doc.doctype not in DOCTYPES_FOR_DOCTYPE \
 		and autoname == "autoincrement") or doc.doctype in log_types:
 
-		# TODO: cache this value
+		if doc.doctype.encode() in frappe.cache().lrange("autoincrement_doctypes", 0, -1):
+			next_val = get_next_val(doc.doctype)
+			doc.name = next_val
+			return
+
 		if frappe.db.sql(
 			f"""select data_type FROM information_schema.columns
 			where column_name = 'name' and table_name = 'tab{doc.doctype}'"""
 		)[0][0] == "bigint":
 
 			next_val = get_next_val(doc.doctype)
-			# TODO: this method might not work in concurrent executions
-			# last_inserted_name = frappe.db.sql(f"select max(name) from `tab{doc.doctype}`")[0]
-			# if last_inserted_name:
-			# 	if last_inserted_name[0] + 1 == next_val:
-					# doc.name = next_val
-				# else:
-					# doc.name = last_inserted_name[0] + 1
-			# else:
 			doc.name = next_val
-
+			frappe.cache().lpush("autoincrement_doctypes", doc.doctype)
 			return
 
 	if getattr(doc, "amended_from", None):
