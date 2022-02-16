@@ -33,15 +33,16 @@ def set_new_name(doc):
 		doc.name = None
 
 	is_single = getattr(doc.meta, "issingle", False)
+	is_table = getattr(doc.meta, "istable", False)
 
-	if (not is_single \
-		and doc.doctype not in DOCTYPES_FOR_DOCTYPE \
-		and autoname == "autoincrement") or doc.doctype in log_types:
+	if ((not is_single and autoname == "autoincrement") or is_table) \
+		and doc.doctype not in DOCTYPES_FOR_DOCTYPE or doc.doctype in log_types:
 
-		if doc.doctype.encode() in frappe.cache().lrange("autoincrement_doctypes", 0, -1):
-			next_val = get_next_val(doc.doctype)
-			doc.name = next_val
-			return
+		if not frappe.flags.in_install:
+			if doc.doctype.encode() in frappe.cache().lrange("autoincrement_doctypes", 0, -1):
+				next_val = get_next_val(doc.doctype)
+				doc.name = next_val
+				return
 
 		if frappe.db.sql(
 			f"""select data_type FROM information_schema.columns
@@ -50,7 +51,10 @@ def set_new_name(doc):
 
 			next_val = get_next_val(doc.doctype)
 			doc.name = next_val
-			frappe.cache().lpush("autoincrement_doctypes", doc.doctype)
+
+			if not frappe.flags.in_install:
+				frappe.cache().lpush("autoincrement_doctypes", doc.doctype)
+
 			return
 
 	if getattr(doc, "amended_from", None):
@@ -60,7 +64,7 @@ def set_new_name(doc):
 	elif is_single:
 		doc.name = doc.doctype
 
-	elif getattr(doc.meta, "istable", False):
+	elif is_table:
 		doc.name = make_autoname("hash", doc.doctype)
 
 	if not doc.name:

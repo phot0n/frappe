@@ -35,7 +35,7 @@ class MariaDBTable(DBTable):
 
 		# creating sequence(s)
 		if (not self.meta.issingle \
-			and self.meta.autoname == "autoincrement") or self.doctype in log_types:
+			and self.meta.autoname == "autoincrement") or self.doctype in log_types or self.meta.istable:
 
 			# NOTE: using a very small cache - as during backup, if the sequence was used in anyform,
 			# it drops the cache and uses the next non cached value in setval func and

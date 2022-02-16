@@ -14,7 +14,7 @@ from frappe.model import (
 	no_value_fields, default_fields, table_fields, data_field_options, child_table_fields
 )
 from frappe.model.document import Document
-from frappe.model.base_document import get_controller
+from frappe.model.base_document import DOCTYPES_FOR_DOCTYPE, get_controller
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.custom.doctype.custom_field.custom_field import create_custom_field
 from frappe.desk.notifications import delete_notification_count_for
@@ -724,7 +724,7 @@ class DocType(Document):
 					frappe.throw("Cannot change to/from Autoincrement naming rule")
 
 		else:
-			if self.autoname == "autoincrement":
+			if self.autoname == "autoincrement" or (self.istable and self.name not in DOCTYPES_FOR_DOCTYPE):
 				# push the doctype to cache
 				frappe.cache().lpush("autoincrement_doctypes", self.name)
 
