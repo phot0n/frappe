@@ -103,9 +103,12 @@ class PostgresDatabase(Database):
 			# since tuple is immutable
 			args = list(args)
 			args[0] = modify_query(args[0])
-			args = tuple(args)
+			if len(args) >= 2:
+				args[1] = modify_values(args[1])
 		elif kwargs.get('query'):
 			kwargs['query'] = modify_query(kwargs.get('query'))
+			if kwargs.get('values'):
+				kwargs['values'] = modify_values(kwargs.get('values'))
 
 		return super(PostgresDatabase, self).sql(*args, **kwargs)
 
@@ -336,7 +339,39 @@ def modify_query(query):
 	if re.search('from tab', query, flags=re.IGNORECASE):
 		query = re.sub('from tab([a-zA-Z]*)', r'from "tab\1"', query, flags=re.IGNORECASE)
 
+	# only find int (with/without signs), ignore decimals (with/without signs), ignore hashes (which start with numbers),
+	# drop .0 from decimals and add quotes around them
+	#
+	# >>> query = "c='abcd' , a = 45, b = -45.0, c =   40, d=4500.0, e=3500.53, f=40psdfsd, g=9092094312, h=12.00023"
+	# >>> re.sub("=\s*(?!\d+[a-zA-Z])(?![+-]?\d+\.0\d+)(?![+-]?\d+\.[1-9])([+-]?\d+)(\.0)?", r"= '\1'", query)
+	# 	"c='abcd' , a = '45', b = '-45', c = '40', d= '4500', e= 3500.53, f= 40psdfsd, g= '9092094312', h= 12.00023"
+
+	query = re.sub("=\s*(?!\d+[a-zA-Z])(?![+-]?\d+\.0\d)(?![+-]?\d+\.[1-9])([+-]?\d+)(\.0)?", r"= '\1'", query)
 	return query
+
+def modify_values(values):
+	def stringify_value(value):
+		if isinstance(value, int):
+			value = str(value)
+		elif isinstance(value, float):
+			truncated_float = int(value)
+			if value == truncated_float:
+				value = str(truncated_float)
+
+		return value
+
+	if isinstance(values, dict):
+		for k, v in values.items():
+			values[k] = stringify_value(v)
+	elif isinstance(values, (tuple, list)):
+		new_values = []
+		for val in values:
+			new_values.append(stringify_value(val))
+		values = new_values
+	else:
+		values = stringify_value(values)
+
+	return values
 
 def replace_locate_with_strpos(query):
 	# strpos is the locate equivalent in postgres

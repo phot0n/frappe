@@ -199,6 +199,7 @@ def get_unread_update_logs(consumer_name, dt, dn):
 	"""
 	Get old logs unread by the consumer on a particular document
 	"""
+	# TODO: what to do about things like this? (join part)
 	already_consumed = [x[0] for x in frappe.db.sql("""
 		SELECT
 			update_log.name

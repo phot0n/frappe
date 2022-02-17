@@ -34,7 +34,7 @@ class PostgresTable(DBTable):
 		if (not self.meta.issingle \
 			and self.meta.autoname == "autoincrement") or self.meta.istable or self.doctype in log_types:
 
-			create_sequence(self.doctype, check_not_exists=True, cache=50)
+			create_sequence(self.doctype, check_not_exists=True)
 			name_column = "name bigint primary key"
 
 		# TODO: set docstatus length
