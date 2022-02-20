@@ -1,4 +1,5 @@
 from frappe import db, conf, scrub
+from typing import Optional
 
 
 def create_sequence(
@@ -7,19 +8,21 @@ def create_sequence(
 	slug: str="_id_seq",
 	check_not_exists: bool=False,
 	cycle: bool=False,
+	get_sequence_name=False,
 	cache: int=0,
 	start_value: int=0,
 	increment_by: int=0,
 	min_value: int=0,
 	max_value: int=0
-) -> None:
+) -> Optional[str]:
 
 	query = "create sequence"
+	sequence_name = scrub(doctype_name + slug)
 
 	if check_not_exists:
 		query += " if not exists"
 
-	query += f" {scrub(doctype_name + slug)}"
+	query += f" {sequence_name}"
 
 	if cache:
 		query += f" cache {cache}"
@@ -50,6 +53,9 @@ def create_sequence(
 		query += " cycle"
 
 	db.sql(query)
+
+	if get_sequence_name:
+		return sequence_name
 
 
 def get_next_val(doctype_name: str, slug: str="_id_seq") -> int:
