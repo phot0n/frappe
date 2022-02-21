@@ -204,7 +204,7 @@ def get_unread_update_logs(consumer_name, dt, dn):
 		SELECT
 			update_log.name
 		FROM `tabEvent Update Log` update_log
-		JOIN `tabEvent Update Log Consumer` consumer ON consumer.parent = update_log.name
+		JOIN `tabEvent Update Log Consumer` consumer ON CAST(consumer.parent AS INT) = update_log.name
 		WHERE
 			consumer.consumer = %(consumer)s
 			AND update_log.ref_doctype = %(dt)s
