@@ -346,7 +346,8 @@ def modify_query(query):
 	# >>> re.sub("=\s*(?!\d+[a-zA-Z])(?![+-]?\d+\.0\d+)(?![+-]?\d+\.[1-9])([+-]?\d+)(\.0)?", r"= '\1'", query)
 	# 	"c='abcd' , a = '45', b = '-45', c = '40', d= '4500', e= 3500.53, f= 40psdfsd, g= '9092094312', h= 12.00023"
 
-	query = re.sub("=\s*(?!\d+[a-zA-Z])(?![+-]?\d+\.0\d)(?![+-]?\d+\.[1-9])([+-]?\d+)(\.0)?", r"= '\1'", query)
+	if "tabEmail Queue Recipient" in query: print(query)
+	query = re.sub(r"=\s*(?!\d+[a-zA-Z])(?![+-]?\d+\.0\d)(?![+-]?\d+\.[1-9])([+-]?\d+)(\.0)?", r"= '\1'", query)
 	return query
 
 def modify_values(values):
