@@ -60,8 +60,8 @@ class DocType(Document):
 
 		self.check_developer_mode()
 
-		self.validate_name()
 		self.validate_autoname()
+		self.validate_name()
 
 		self.set_defaults_for_single_and_table()
 		self.scrub_field_names()
@@ -724,8 +724,7 @@ class DocType(Document):
 					frappe.throw("Cannot change to/from Autoincrement naming rule")
 
 		else:
-			if self.autoname == "autoincrement" or self.istable:
-				self.autoname = "autoincrement"
+			if self.autoname == "autoincrement":
 				self.allow_rename = 0
 
 				# push the doctype to cache

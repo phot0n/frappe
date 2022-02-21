@@ -9,7 +9,7 @@ from frappe.model import log_types
 class PostgresTable(DBTable):
 	def create(self):
 		varchar_len = frappe.db.VARCHAR_LEN
-		name_column = "name varchar({varchar_len}) not null primary key"
+		name_column = "name varchar({varchar_len}) primary key"
 
 		additional_definitions = ""
 		# columns
@@ -32,7 +32,7 @@ class PostgresTable(DBTable):
 
 		# creating sequence(s)
 		if (not self.meta.issingle \
-			and self.meta.autoname == "autoincrement") or self.meta.istable or self.doctype in log_types:
+			and self.meta.autoname == "autoincrement") or self.doctype in log_types:
 
 			create_sequence(self.doctype, check_not_exists=True)
 			name_column = "name bigint primary key"

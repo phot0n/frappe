@@ -10,7 +10,7 @@ class MariaDBTable(DBTable):
 		additional_definitions = ""
 		engine = self.meta.get("engine") or "InnoDB"
 		varchar_len = frappe.db.VARCHAR_LEN
-		name_column = f"name varchar({varchar_len}) not null primary key"
+		name_column = f"name varchar({varchar_len}) primary key"
 
 		# columns
 		column_defs = self.get_column_definitions()
@@ -35,7 +35,7 @@ class MariaDBTable(DBTable):
 
 		# creating sequence(s)
 		if (not self.meta.issingle \
-			and self.meta.autoname == "autoincrement") or self.meta.istable or self.doctype in log_types:
+			and self.meta.autoname == "autoincrement") or self.doctype in log_types:
 
 			# NOTE: using a very small cache - as during backup, if the sequence was used in anyform,
 			# it drops the cache and uses the next non cached value in setval func and

@@ -203,7 +203,6 @@
    "options": "DocField"
   },
   {
-   "depends_on": "eval: !doc.istable",
    "fieldname": "sb1",
    "fieldtype": "Section Break",
    "label": "Naming"
