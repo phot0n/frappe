@@ -167,7 +167,7 @@ class DatabaseQuery(object):
 			if frappe.conf.db_type == "postgres":
 				parent_name_cast = f"CAST({self.tables[0]}.name AS VARCHAR(140))"
 			else:
-				# NOTE: mariadb only has varchar cast in oracle mode
+				# NOTE: mariadb has varchar cast only in oracle mode
 				parent_name_cast = f"CAST({self.tables[0]}.name AS CHAR COLLATE utf8mb4_unicode_ci)"
 
 			args.tables += f" {self.join} {child} on ({child}.parent = {parent_name_cast})"
