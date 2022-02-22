@@ -199,7 +199,7 @@ def get_unread_update_logs(consumer_name, dt, dn):
 	"""
 	Get old logs unread by the consumer on a particular document
 	"""
-	already_consumed = [str(x[0]) for x in frappe.db.sql("""
+	already_consumed = [x[0] for x in frappe.db.sql("""
 		SELECT
 			update_log.name
 		FROM `tabEvent Update Log` update_log

@@ -141,7 +141,6 @@ class DatabaseQuery(object):
 			%(group_by)s
 			%(order_by)s
 			%(limit)s""" % args
-		print(query)
 
 		return frappe.db.sql(query, as_dict=not self.as_list, debug=self.debug,
 				update=self.update, ignore_ddl=self.ignore_ddl, run=self.run)
@@ -429,6 +428,8 @@ class DatabaseQuery(object):
 				ifnull(`tabDocType`.`fieldname`, fallback) operator "value"
 		"""
 
+		# TODO: refactor + support for integer names
+
 		from frappe.boot import get_additional_filters_from_hooks
 		additional_filters_config = get_additional_filters_from_hooks()
 		f = get_filter(self.doctype, f, additional_filters_config)
@@ -589,7 +590,11 @@ class DatabaseQuery(object):
 				f.operator = 'ilike'
 			condition = f'{column_name} {f.operator} {value}'
 		else:
-			condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
+			if frappe.conf.get('db_type') == 'postgres':
+				column_name = f"CAST({column_name} AS VARCHAR)" if (isinstance(fallback, str) and f.operator != "between") else column_name
+				condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
+			else:
+				condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
 
 		return condition
 
@@ -894,7 +899,7 @@ def get_between_date_filter(value, df=None):
 		data = "'%s' AND '%s'" % (
 			frappe.db.format_date(from_date),
 			frappe.db.format_date(to_date))
-
+	print(data)
 	return data
 
 def get_additional_filter_field(additional_filters_config, f, value):
