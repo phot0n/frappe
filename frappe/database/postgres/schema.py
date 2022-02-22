@@ -9,7 +9,7 @@ from frappe.model import log_types
 class PostgresTable(DBTable):
 	def create(self):
 		varchar_len = frappe.db.VARCHAR_LEN
-		name_column = "name varchar({varchar_len}) primary key"
+		name_column = f"name varchar({varchar_len}) primary key"
 
 		additional_definitions = ""
 		# columns
