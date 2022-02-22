@@ -141,6 +141,7 @@ class DatabaseQuery(object):
 			%(group_by)s
 			%(order_by)s
 			%(limit)s""" % args
+		print(query)
 
 		return frappe.db.sql(query, as_dict=not self.as_list, debug=self.debug,
 				update=self.update, ignore_ddl=self.ignore_ddl, run=self.run)
@@ -167,8 +168,7 @@ class DatabaseQuery(object):
 			if frappe.conf.db_type == "postgres":
 				parent_name_cast = f"CAST({self.tables[0]}.name AS VARCHAR(140))"
 			else:
-				# NOTE: mariadb has varchar cast only in oracle mode
-				parent_name_cast = f"CAST({self.tables[0]}.name AS CHAR COLLATE utf8mb4_unicode_ci)"
+				parent_name_cast = f"{self.tables[0]}.name"
 
 			args.tables += f" {self.join} {child} on ({child}.parent = {parent_name_cast})"
 

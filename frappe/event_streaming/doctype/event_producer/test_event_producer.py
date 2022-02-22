@@ -8,7 +8,7 @@ from frappe.frappeclient import FrappeClient
 from frappe.event_streaming.doctype.event_producer.event_producer import pull_from_node
 from frappe.core.doctype.user.user import generate_keys
 
-producer_url = 'http://test_site_producer:8000'
+producer_url = 'http://woopgres:8005'
 
 class TestEventProducer(unittest.TestCase):
 	# @classmethod
@@ -43,6 +43,7 @@ class TestEventProducer(unittest.TestCase):
 	def test_delete(self):
 		producer = get_remote_site()
 		producer_doc = insert_into_producer(producer, 'test delete sync')
+		breakpoint()
 		self.pull_producer_data()
 		self.assertTrue(frappe.db.exists('ToDo', producer_doc.name))
 		producer.delete('ToDo', producer_doc.name)
@@ -416,7 +417,7 @@ def get_remote_site():
 	producer_site = FrappeClient(
 		url=producer_doc.producer_url,
 		username='Administrator',
-		password='admin',
+		password='1234',
 		verify=False
 	)
 	return producer_site
@@ -432,7 +433,7 @@ def connect():
 		return FrappeClient(
 			url=producer_url,
 			username='Administrator',
-			password='admin',
+			password='1234',
 			verify=False
 		)
 	try:
