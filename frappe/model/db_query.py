@@ -899,7 +899,7 @@ def get_between_date_filter(value, df=None):
 		data = "'%s' AND '%s'" % (
 			frappe.db.format_date(from_date),
 			frappe.db.format_date(to_date))
-	print(data)
+
 	return data
 
 def get_additional_filter_field(additional_filters_config, f, value):

@@ -4,7 +4,6 @@
 import frappe
 import unittest
 import requests
-from frappe.tests.test_query_builder import db_type_is, run_only_if
 from frappe.utils import get_site_url
 
 scripts = [

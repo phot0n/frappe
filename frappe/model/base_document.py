@@ -432,19 +432,15 @@ class BaseDocument(object):
 			ignore_virtual=True,
 		)
 
-		if self.doctype == "Note Seen By": print(self.name)
-
 		columns = list(d)
 		try:
-			q, v = """INSERT INTO `tab{doctype}` ({columns})
+			frappe.db.sql("""INSERT INTO `tab{doctype}` ({columns})
 					VALUES ({values}) {conflict_handler}""".format(
 					doctype=self.doctype,
 					columns=", ".join("`"+c+"`" for c in columns),
 					values=", ".join(["%s"] * len(columns)),
 					conflict_handler=conflict_handler
-				), list(d.values())
-			frappe.db.sql(q, v)
-			if self.doctype == "Note Seen By": print(q, v)
+				), list(d.values()))
 		except Exception as e:
 			if frappe.db.is_primary_key_violation(e):
 				if self.meta.autoname=="hash":

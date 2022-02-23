@@ -134,7 +134,6 @@ class Database(object):
 		# autocommit
 		if auto_commit: self.commit()
 
-		# print(query, values)
 		# execute
 		try:
 			if debug:
@@ -154,7 +153,6 @@ class Database(object):
 					self.log_touched_tables(query, values)
 
 			else:
-
 				self._cursor.execute(query)
 
 				if frappe.flags.in_migrate:
