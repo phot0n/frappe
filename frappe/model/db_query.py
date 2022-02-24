@@ -10,7 +10,7 @@ from frappe import _
 import frappe.permissions
 from datetime import datetime
 import frappe, json, copy, re
-from frappe.model import optional_fields
+from frappe.model import optional_fields, log_types
 from frappe.model.utils.user_settings import get_user_settings, update_user_settings
 from frappe.utils import flt, cint, get_time, make_filter_tuple, get_filter, add_to_date, cstr, get_timespan_date_range
 from frappe.model.meta import get_table_columns
@@ -428,7 +428,8 @@ class DatabaseQuery(object):
 				ifnull(`tabDocType`.`fieldname`, fallback) operator "value"
 		"""
 
-		# TODO: refactor + support for integer names
+		# TODO: refactor
+		# name and other "data" columns can now have int values as well
 
 		from frappe.boot import get_additional_filters_from_hooks
 		additional_filters_config = get_additional_filters_from_hooks()
@@ -438,15 +439,13 @@ class DatabaseQuery(object):
 		if tname not in self.tables:
 			self.append_table(tname)
 
-		if 'ifnull(' in f.fieldname:
-			column_name = f.fieldname
-		else:
-			column_name = f"{tname}.{f.fieldname}"
-
+		column_name = f.fieldname if 'ifnull(' in f.fieldname else f"{tname}.{f.fieldname}"
 		can_be_null = True
 
 		if f.operator.lower() in additional_filters_config:
 			f.update(get_additional_filter_field(additional_filters_config, f, f.value))
+
+		meta = frappe.get_meta(f.doctype)
 
 		# prepare in condition
 		if f.operator.lower() in ('ancestors of', 'descendants of', 'not ancestors of', 'not descendants of'):
@@ -456,12 +455,8 @@ class DatabaseQuery(object):
 			# if not isinstance(values, (list, tuple)):
 			# 	values = values.split(",")
 
-			ref_doctype = f.doctype
-
-			if frappe.get_meta(f.doctype).get_field(f.fieldname) is not None :
-				ref_doctype = frappe.get_meta(f.doctype).get_field(f.fieldname).options
-
-			result=[]
+			field = meta.get_field(f.fieldname)
+			ref_doctype = field.options if field else f.doctype
 
 			lft, rgt = '', ''
 			if f.value:
@@ -486,10 +481,10 @@ class DatabaseQuery(object):
 				value = f"({', '.join(value)})"
 			else:
 				value = "('')"
+
 			# changing operator to IN as the above code fetches all the parent / child values and convert into tuple
 			# which can be directly used with IN operator to query.
 			f.operator = 'not in' if f.operator.lower() in ('not ancestors of', 'not descendants of') else 'in'
-
 
 		elif f.operator.lower() in ('in', 'not in'):
 			values = f.value or ''
@@ -502,8 +497,15 @@ class DatabaseQuery(object):
 				value = f"({', '.join(value)})"
 			else:
 				value = "('')"
+
+			if frappe.db.db_type == "postgres":
+				if 'ifnull' in column_name:
+					column_name = re.sub(r"ifnull\((`tab[a-zA-Z_\ -]+`\.[`]?[a-zA-Z_-]+[`]?)", r"ifnull(cast(\1 as varchar)", column_name)
+				else:
+					column_name = f"cast({column_name} as varchar({frappe.db.VARCHAR_LEN}))"
+
 		else:
-			df = frappe.get_meta(f.doctype).get("fields", {"fieldname": f.fieldname})
+			df = meta.get("fields", {"fieldname": f.fieldname})
 			df = df[0] if df else None
 
 			if df and df.fieldtype in ("Check", "Float", "Int", "Currency", "Percent"):
@@ -520,7 +522,8 @@ class DatabaseQuery(object):
 				fallback = "'0001-01-01 00:00:00'"
 
 			elif f.operator.lower() in ('between') and \
-				(f.fieldname in ('creation', 'modified') or (df and (df.fieldtype=="Date" or df.fieldtype=="Datetime"))):
+				(f.fieldname in ('creation', 'modified') or \
+				(df and (df.fieldtype=="Date" or df.fieldtype=="Datetime"))):
 
 				value = get_between_date_filter(f.value, df)
 				fallback = "'0001-01-01 00:00:00'"
@@ -552,7 +555,7 @@ class DatabaseQuery(object):
 
 			elif f.operator.lower() in ("like", "not like") or (isinstance(f.value, str) and
 				(not df or df.fieldtype not in ["Float", "Int", "Currency", "Percent", "Check"])):
-					value = "" if f.value is None else f.value
+					value = f.value or ""
 					fallback = "''"
 
 					if f.operator.lower() in ("like", "not like") and isinstance(value, str):
@@ -563,9 +566,16 @@ class DatabaseQuery(object):
 				value = f.value or "''"
 				fallback = "''"
 
+				if frappe.db.db_type == "postgres":
+					if 'ifnull' in column_name:
+						column_name = re.sub(r"ifnull\((`tab[a-zA-Z_\ -]+`\.[`]?[a-zA-Z_-]+[`]?)", r"ifnull(cast(\1 as varchar)", column_name)
+					else:
+						column_name = f"cast({column_name} as varchar({frappe.db.VARCHAR_LEN}))"
+
 			elif f.fieldname == 'name':
-				value = f.value or "''"
-				fallback = "''"
+				default = '' if not (meta.autoname == "autoincrement" or f.doctype in log_types) else "0"
+				value = f.value or f"{default}"
+				fallback = f"'{default}'"
 
 			else:
 				value = flt(f.value)
@@ -577,7 +587,7 @@ class DatabaseQuery(object):
 				value = f"{tname}.{quote}{f.value.name}{quote}"
 
 			# escape value
-			elif isinstance(value, str) and not f.operator.lower() == 'between':
+			elif isinstance(value, str) and f.operator.lower() != 'between':
 				value = f"{frappe.db.escape(value, percent=False)}"
 
 		if (
@@ -590,12 +600,9 @@ class DatabaseQuery(object):
 				f.operator = 'ilike'
 			condition = f'{column_name} {f.operator} {value}'
 		else:
-			if frappe.conf.get('db_type') == 'postgres':
-				column_name = f"CAST({column_name} AS VARCHAR)" if (isinstance(fallback, str) and f.operator != "between") else column_name
-				condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
-			else:
-				condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
+			condition = f'ifnull({column_name}, {fallback}) {f.operator} {value}'
 
+		print(condition) # added for debugging
 		return condition
 
 	def build_match_conditions(self, as_condition=True):
