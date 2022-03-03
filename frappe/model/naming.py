@@ -77,15 +77,18 @@ def set_new_name(doc):
 	)
 
 def is_autoincremented(doctype: str, meta: "Meta" = None):
-	if doctype in frappe.local.autoincremented_doctypes:
-		return True
+	if doctype in log_types:
+		if frappe.local.is_new_site == -1:
+			if frappe.db.sql(
+				f"""select data_type FROM information_schema.columns
+				where column_name = 'name' and table_name = 'tab{doctype}'"""
+			)[0][0] == "bigint":
+				frappe.local.is_new_site = 1
+				return True
+			else:
+				frappe.local.is_new_site = 0
 
-	elif doctype in log_types:
-		if frappe.db.sql(
-			f"""select data_type FROM information_schema.columns
-			where column_name = 'name' and table_name = 'tab{doctype}'"""
-		)[0][0] == "bigint":
-			frappe.local.autoincremented_doctypes.add(doctype)
+		elif frappe.local.is_new_site:
 			return True
 
 	else:
@@ -93,7 +96,6 @@ def is_autoincremented(doctype: str, meta: "Meta" = None):
 			meta = frappe.get_meta(doctype)
 
 		if meta.autoname == "autoincrement":
-			frappe.local.autoincremented_doctypes.add(doctype)
 			return True
 
 	return False
