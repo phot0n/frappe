@@ -389,7 +389,7 @@ def make_test_objects(doctype, test_records=None, verbose=None, reset=False):
 
 		try:
 			d.run_method("before_test_insert")
-			d.insert(ignore_if_duplicate=True)
+			d.insert()
 
 			if docstatus == 1:
 				d.submit()
