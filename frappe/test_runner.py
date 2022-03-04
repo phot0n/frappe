@@ -349,7 +349,6 @@ def make_test_records_for_doctype(doctype, verbose=1, force=False):
 			print_mandatory_fields(doctype)
 
 	add_to_test_record_log(doctype)
-	frappe.db.commit()
 
 def make_test_objects(doctype, test_records=None, verbose=None, reset=False):
 	'''Make test objects from given list of `test_records` or from `test_records.json`'''
