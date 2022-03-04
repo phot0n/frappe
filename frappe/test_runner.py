@@ -322,7 +322,7 @@ def get_dependencies(doctype):
 
 	return options_list
 
-def make_test_records_for_doctype(doctype, verbose=0, force=False):
+def make_test_records_for_doctype(doctype, verbose=1, force=False):
 	if not force and doctype in get_test_record_log():
 		return
 
