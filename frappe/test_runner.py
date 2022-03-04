@@ -328,8 +328,8 @@ def make_test_records_for_doctype(doctype, verbose=1, force=False):
 
 	module, test_module = get_modules(doctype)
 
-	if verbose:
-		print("Making for " + doctype)
+	# if verbose:
+	print("Making for " + doctype)
 
 	if hasattr(test_module, "_make_test_records"):
 		frappe.local.test_objects[doctype] += test_module._make_test_records(verbose)
