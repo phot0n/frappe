@@ -251,7 +251,7 @@ def install_app(name, verbose=False, set_as_patched=True, force=False):
 	if name not in frappe.get_all_apps():
 		raise Exception("App not in apps.txt")
 
-	if name in installed_apps:
+	if not force and name in installed_apps:
 		frappe.msgprint(frappe._("App {0} already installed").format(name))
 		return
 
@@ -268,7 +268,7 @@ def install_app(name, verbose=False, set_as_patched=True, force=False):
 	if name != "frappe":
 		add_module_defs(name, ignore_if_duplicate=force)
 
-	sync_for(name, force=True, reset_permissions=True)
+	sync_for(name, force=force, reset_permissions=True)
 
 	add_to_installed_apps(name)
 
