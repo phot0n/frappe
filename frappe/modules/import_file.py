@@ -126,6 +126,7 @@ def import_file_by_path(
 				get_datetime(doc.get("modified")) <= get_datetime(db_modified_timestamp)
 			)
 
+			print(doc)
 			if not force and db_modified_timestamp:
 				stored_hash = None
 				if doc["doctype"] == "DocType":
