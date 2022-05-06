@@ -239,6 +239,7 @@ def install_app(name, verbose=False, set_as_patched=True, force=False):
 	app_hooks = frappe.get_hooks(app_name=name)
 	installed_apps = frappe.get_installed_apps()
 
+	print("installed_apps ", installed_apps)
 	# install pre-requisites
 	if app_hooks.required_apps:
 		for app in app_hooks.required_apps:
