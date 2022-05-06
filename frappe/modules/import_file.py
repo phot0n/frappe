@@ -155,6 +155,11 @@ def import_file_by_path(
 			)
 
 			if doc["doctype"] == "DocType":
+				if doc["name"] == "DocType":
+					from frappe.database.schema import add_column
+
+					add_column(doctype="DocType", column_name="migration_hash", fieldtype="Data")
+
 				doctype_table = DocType("DocType")
 				frappe.qb.update(doctype_table).set(doctype_table.migration_hash, calculated_hash).where(
 					doctype_table.name == doc["name"]
