@@ -679,7 +679,7 @@ class DatabaseQuery(object):
 				fallback = "''"
 
 			else:
-				value = flt(f.value)
+				value = f.value
 				fallback = 0
 
 			if isinstance(f.value, Column):
