@@ -228,13 +228,17 @@ class EmailAccount(Document):
 			frappe.throw(_("{0} is required").format("Email Server"))
 
 		email_server = EmailServer(frappe._dict(args))
+		print("woop-2")
 		self.check_email_server_connection(email_server, in_receive)
+		print("woop")
 
 		if not in_receive and self.use_imap:
 			email_server.imap.logout()
 
 		# reset failed attempts count
 		self.set_failed_attempts_count(0)
+
+		print("woopy")
 
 		return email_server
 
@@ -468,7 +472,8 @@ class EmailAccount(Document):
 			frappe.cache().set_value("workers:no-internet", True)
 
 	def set_failed_attempts_count(self, value):
-		frappe.cache().set(f"{self.name}:email-account-failed-attempts", value)
+		if not frappe.flags.in_test:
+			frappe.cache().set(f"{self.name}:email-account-failed-attempts", value)
 
 	def get_failed_attempts_count(self):
 		return cint(frappe.cache().get(f"{self.name}:email-account-failed-attempts"))
@@ -524,9 +529,12 @@ class EmailAccount(Document):
 		if not self.enable_incoming:
 			return []
 
+		print("dayum")
+
 		email_sync_rule = self.build_email_sync_rule()
 		try:
 			email_server = self.get_incoming_server(in_receive=True, email_sync_rule=email_sync_rule)
+			print("heya")
 			if self.use_imap:
 				# process all given imap folder
 				for folder in self.imap_folder:

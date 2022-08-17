@@ -383,7 +383,9 @@ class TestEmailAccount(unittest.TestCase):
 		}
 
 		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
+		print(email_account.imap_folder[0].as_dict())
 		mails = TestEmailAccount.mocked_get_inbound_mails(email_account, messages)
+		print(mails)
 		self.assertEqual(len(mails), 3)
 
 		inbox_mails = 0
@@ -405,10 +407,18 @@ class TestEmailAccount(unittest.TestCase):
 		self.assertEqual(inbox_mails, 2)
 		self.assertEqual(test_folder_mails, 1)
 
+	@patch(
+		"frappe.email.doctype.email_account.email_account.EmailAccount.check_email_server_connection",
+		return_value=True,
+	)
 	@patch("frappe.email.receive.EmailServer.select_imap_folder", return_value=True)
 	@patch("frappe.email.receive.EmailServer.logout", side_effect=lambda: None)
 	def mocked_get_inbound_mails(
-		email_account, messages={}, mocked_logout=None, mocked_select_imap_folder=None
+		email_account,
+		messages={},
+		mocked_logout=None,
+		mocked_select_imap_folder=None,
+		mocked_check_email_server_connection=None,
 	):
 		from frappe.email.receive import EmailServer
 
@@ -420,10 +430,18 @@ class TestEmailAccount(unittest.TestCase):
 
 		return mails
 
+	@patch(
+		"frappe.email.doctype.email_account.email_account.EmailAccount.check_email_server_connection",
+		return_value=True,
+	)
 	@patch("frappe.email.receive.EmailServer.select_imap_folder", return_value=True)
 	@patch("frappe.email.receive.EmailServer.logout", side_effect=lambda: None)
 	def mocked_email_receive(
-		email_account, messages={}, mocked_logout=None, mocked_select_imap_folder=None
+		email_account,
+		messages={},
+		mocked_logout=None,
+		mocked_select_imap_folder=None,
+		mocked_check_email_server_connection=None,
 	):
 		def get_mocked_messages(**kwargs):
 			return messages.get(kwargs["folder"], {})
