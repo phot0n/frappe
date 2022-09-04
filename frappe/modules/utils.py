@@ -290,7 +290,7 @@ def make_boilerplate(
 
 	if doc.get("is_tree"):
 		base_class = "NestedSet"
-		base_class_import = "from frappe.utils.nestedset import NestedSet"
+		base_class_import = "from frappe.model.nestedset import NestedSet"
 
 	if doc.get("is_virtual"):
 		controller_body = indent(
