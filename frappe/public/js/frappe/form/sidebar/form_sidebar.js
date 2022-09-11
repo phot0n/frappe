@@ -27,7 +27,6 @@ frappe.ui.form.Sidebar = class {
 		this.image_wrapper = this.image_section.find(".sidebar-image-wrapper");
 		this.make_assignments();
 		this.make_attachments();
-		this.make_review();
 		this.make_shared();
 
 		this.make_tags();
@@ -252,18 +251,6 @@ frappe.ui.form.Sidebar = class {
 	}
 
 	refresh_image() {}
-
-	make_review() {
-		const review_wrapper = this.sidebar.find(".form-reviews");
-		if (frappe.boot.energy_points_enabled && !this.frm.is_new()) {
-			this.frm.reviews = new frappe.ui.form.Review({
-				parent: review_wrapper,
-				frm: this.frm,
-			});
-		} else {
-			review_wrapper.remove();
-		}
-	}
 
 	reload_docinfo(callback) {
 		frappe.call({
