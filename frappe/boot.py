@@ -15,9 +15,6 @@ from frappe.model.base_document import get_controller
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Count
 from frappe.query_builder.terms import ParameterizedValueWrapper, SubQuery
-from frappe.social.doctype.energy_point_settings.energy_point_settings import (
-	is_energy_point_enabled,
-)
 from frappe.translate import get_lang_dict, get_messages_for_boot, get_translated_doctypes
 from frappe.utils import add_user_info, cstr, get_time_zone
 from frappe.utils.change_log import get_versions
@@ -90,7 +87,6 @@ def get_bootinfo():
 	bootinfo.lang_dict = get_lang_dict()
 	bootinfo.success_action = get_success_action()
 	bootinfo.update(get_email_accounts(user=frappe.session.user))
-	bootinfo.energy_points_enabled = is_energy_point_enabled()
 	bootinfo.website_tracking_enabled = is_tracking_enabled()
 	bootinfo.frequently_visited_links = frequently_visited_links()
 	bootinfo.link_preview_doctypes = get_link_preview_doctypes()
