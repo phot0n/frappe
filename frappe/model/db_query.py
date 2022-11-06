@@ -242,7 +242,7 @@ class DatabaseQuery:
 
 		# left join link tables
 		for link in self.link_tables:
-			args.tables += f" {self.join} `tab{link.doctype}` on (`tab{link.doctype}`.`name` = {self.tables[0]}.`{link.fieldname}`)"
+			args.tables += f" {self.join} `tab{link.doctype}` as {link.fieldname} on (`{link.fieldname}`.`name` = {self.tables[0]}.`{link.fieldname}`)"
 
 		if self.grouped_or_conditions:
 			self.conditions.append(f"({' or '.join(self.grouped_or_conditions)})")
@@ -322,12 +322,19 @@ class DatabaseQuery:
 				alias = None
 				if " as " in field:
 					field, alias = field.split(" as ")
+
 				linked_fieldname, fieldname = field.split(".")
 				linked_field = frappe.get_meta(self.doctype).get_field(linked_fieldname)
 				linked_doctype = linked_field.options
+				linked_table = None
 				if linked_field.fieldtype == "Link":
-					self.append_link_table(linked_doctype, linked_fieldname)
-				field = f"`tab{linked_doctype}`.`{fieldname}`"
+					linked_table = self.append_link_table(linked_doctype, linked_fieldname)
+
+				if linked_table:
+					field = f"`{linked_table.fieldname}`.`{fieldname}`"
+				else:
+					field = f"`tab{linked_doctype}`.`{fieldname}`"
+
 				if alias:
 					field = f"{field} as {alias}"
 				self.fields[self.fields.index(original_field)] = field
@@ -453,6 +460,8 @@ class DatabaseQuery:
 		self.link_tables.append(
 			frappe._dict(doctype=doctype, fieldname=fieldname, table_name=f"`tab{doctype}`")
 		)
+
+		return self.link_tables[-1]
 
 	def check_read_permission(self, doctype):
 		ptype = "select" if frappe.only_has_select_perm(doctype) else "read"
