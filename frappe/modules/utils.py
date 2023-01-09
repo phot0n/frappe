@@ -292,6 +292,10 @@ def make_boilerplate(
 		base_class = "NestedSet"
 		base_class_import = "from frappe.utils.nestedset import NestedSet"
 
+	if doc.get("is_redis_based"):
+		base_class = "RedisDocument"
+		base_class_import = "from frappe.model.redis_document import RedisDocument"
+
 	if doc.get("is_virtual"):
 		controller_body = indent(
 			dedent(

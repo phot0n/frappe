@@ -97,6 +97,7 @@ class DocType(Document):
 		- Add custom field `auto_repeat` if Repeatable
 		- Check if links point to valid fieldnames"""
 
+		self.set_defaults_for_redis_based()
 		self.check_developer_mode()
 
 		self.validate_name()
@@ -193,6 +194,10 @@ class DocType(Document):
 		if self.autoname and self.autoname == "autoincrement":
 			self.allow_rename = 0
 
+	def set_defaults_for_redis_based(self):
+		if self.is_redis_based:
+			self.is_virtual = 1
+
 	def set_default_in_list_view(self):
 		"""Set default in-list-view for first 4 mandatory fields"""
 		not_allowed_in_list_view = get_fields_not_allowed_in_list_view(self.meta)
@@ -223,7 +228,7 @@ class DocType(Document):
 				CannotCreateStandardDoctypeError,
 			)
 
-		if self.is_virtual and self.custom:
+		if self.is_virtual and self.custom and not self.is_redis_based:
 			frappe.throw(
 				_("Not allowed to create custom Virtual DocType."), CannotCreateStandardDoctypeError
 			)

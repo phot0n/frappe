@@ -42,6 +42,7 @@ def get_controller(doctype):
 
 	def _get_controller():
 		from frappe.model.document import Document
+		from frappe.model.redis_document import RedisDocument
 		from frappe.utils.nestedset import NestedSet
 
 		module_name, custom = frappe.db.get_value(
@@ -49,8 +50,14 @@ def get_controller(doctype):
 		) or ("Core", False)
 
 		if custom:
-			is_tree = frappe.db.get_value("DocType", doctype, "is_tree", ignore=True, cache=True)
-			_class = NestedSet if is_tree else Document
+			is_tree, is_redis_based = frappe.db.get_value(
+				"DocType", doctype, ("is_tree", "is_redis_based"), ignore=True, cache=True
+			)
+			_class = Document
+			if is_tree:
+				_class = NestedSet
+			elif is_redis_based:
+				_class = RedisDocument
 		else:
 			class_overrides = frappe.get_hooks("override_doctype_class")
 			if class_overrides and class_overrides.get(doctype):
