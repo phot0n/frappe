@@ -249,6 +249,9 @@ class RedisWrapper(redis.Redis):
 		except redis.exceptions.ConnectionError:
 			return []
 
+	def hlen(self, name):
+		return super().hlen(self.make_key(name))
+
 	def sadd(self, name, *values):
 		"""Add a member/members to a given set"""
 		super().sadd(self.make_key(name), *values)
