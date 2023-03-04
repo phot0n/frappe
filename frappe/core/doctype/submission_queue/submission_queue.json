@@ -19,6 +19,7 @@
  ],
  "fields": [
   {
+   "description": "This is linked to a virtual doctype and might start throwing errors after sometime.",
    "fieldname": "job_id",
    "fieldtype": "Link",
    "label": "Job Id",
@@ -88,7 +89,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-03-05 00:52:57.998686",
+ "modified": "2023-03-05 01:10:56.360383",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Submission Queue",
