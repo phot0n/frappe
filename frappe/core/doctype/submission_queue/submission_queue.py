@@ -25,7 +25,7 @@ class SubmissionQueue(Document):
 
 	@property
 	def queued_doc(self):
-		return getattr(self, "to_be_queued_doc", frappe.get_doc(self.ref_doctype, self.ref_docname))
+		return frappe.get_doc(self.ref_doctype, self.ref_docname)
 
 	@staticmethod
 	def clear_old_logs(days=30):
@@ -42,24 +42,15 @@ class SubmissionQueue(Document):
 		super().insert(ignore_permissions=True)
 
 	def lock(self):
-		self.queued_doc.lock()
+		self.to_be_queued_doc.lock()
 
 	def unlock(self):
 		self.queued_doc.unlock()
 
-	def update_job_id(self, job_id):
-		frappe.db.set_value(
-			self.doctype,
-			self.name,
-			{"job_id": job_id},
-			update_modified=False,
-		)
-		frappe.db.commit()
-
 	def after_insert(self):
 		self.queue_action(
 			"background_submission",
-			to_be_queued_doc=self.queued_doc,
+			to_be_queued_doc=self.to_be_queued_doc,
 			action_for_queuing=self.action_for_queuing,
 			timeout=600,
 			enqueue_after_commit=True,
@@ -75,21 +66,26 @@ class SubmissionQueue(Document):
 
 		try:
 			getattr(to_be_queued_doc, _action)()
-			add_data_to_monitor(
-				doctype=to_be_queued_doc.doctype,
-				docname=to_be_queued_doc.name,
-				action=_action,
-				execution_time=time_diff_in_seconds(now(), self.created_at),
-				enqueued_by=self.enqueued_by,
-			)
 			values = {"status": "Finished"}
 		except Exception:
 			values = {"status": "Failed", "exception": frappe.get_traceback(with_context=True)}
 			frappe.db.rollback()
 
-		values["ended_at"] = now()
-		frappe.db.set_value(self.doctype, self.name, values, update_modified=False)
+		self.update_queue_status(values)
 		self.notify(values["status"], action_for_queuing)
+
+	def update_job_id(self, job_id):
+		frappe.db.set_value(
+			self.doctype,
+			self.name,
+			{"job_id": job_id},
+			update_modified=False,
+		)
+		frappe.db.commit()
+
+	def update_queue_status(self, status):
+		status["ended_at"] = now()
+		frappe.db.set_value(self.doctype, self.name, status, update_modified=False)
 
 	def notify(self, submission_status: str, action: str):
 		if submission_status == "Failed":
@@ -101,7 +97,7 @@ class SubmissionQueue(Document):
 			docname = self.ref_docname
 			message = _("Action {0} completed successfully on {1} {2}. View it {3}")
 
-		message_replacements = (
+		common_message_replacements = (
 			frappe.bold(action),
 			frappe.bold(str(self.ref_doctype)),
 			frappe.bold(str(self.ref_docname)),
@@ -109,11 +105,12 @@ class SubmissionQueue(Document):
 
 		time_diff = time_diff_in_seconds(now(), self.created_at)
 		if cint(time_diff) <= 60:
+			# if the job took less than 60 secs to complete, show an alert
 			frappe.publish_realtime(
 				"msgprint",
 				{
 					"message": message.format(
-						*message_replacements,
+						*common_message_replacements,
 						f"<a href='/app/{quote(doctype.lower().replace(' ', '-'))}/{quote(docname)}'><b>here</b></a>",
 					),
 					"alert": True,
@@ -126,7 +123,7 @@ class SubmissionQueue(Document):
 				"type": "Alert",
 				"document_type": doctype,
 				"document_name": docname,
-				"subject": message.format(*message_replacements, "here"),
+				"subject": message.format(*common_message_replacements, "here"),
 			}
 
 			notify_to = frappe.db.get_value("User", self.enqueued_by, fieldname="email")
@@ -138,20 +135,20 @@ class SubmissionQueue(Document):
 		# for example: hitting unlock on a submission could lead to unlocking of another submission
 		# of the same reference document.
 
-		if self.status != "Queued":
+		if self.status != "Queued" or "System Manager" not in frappe.get_roles():
 			return
 
-		self.queued_doc.unlock()
+		self.unlock()
 		frappe.msgprint(_("Document Unlocked"))
 
 
-def queue_submission(doc: Document, action: str, alert: bool = True):
+def queue_submission(doc: Document, action: str, *, show_alert: bool = True):
 	queue = frappe.new_doc("Submission Queue")
 	queue.ref_doctype = doc.doctype
 	queue.ref_docname = doc.name
 	queue.insert(doc, action)
 
-	if alert:
+	if show_alert:
 		frappe.msgprint(
 			_("Queued for Submission. You can track the progress over {0}.").format(
 				f"<a href='/app/submission-queue/{queue.name}'><b>here</b></a>"
@@ -170,17 +167,15 @@ def get_latest_submissions(doctype, docname):
 		"Submission Queue",
 		filters={"ref_doctype": doctype, "ref_docname": docname},
 		fieldname=["name", "exception", "status"],
+		as_dict=True,
 	)
 
-	out = None
 	if latest_submission:
-		out = {
-			"latest_submission": latest_submission[0],
-			"exc": format_tb(latest_submission[1]),
-			"status": latest_submission[2],
+		return {
+			"latest_submission": latest_submission.name,
+			"exc": format_tb(latest_submission.exception),
+			"status": latest_submission.status,
 		}
-
-	return out
 
 
 def format_tb(traceback: str | None = None):
