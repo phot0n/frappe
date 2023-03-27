@@ -66,23 +66,6 @@ frappe.email_defaults_pop = {
 	},
 };
 
-function oauth_access(frm) {
-	frappe.model.with_doc("Connected App", frm.doc.connected_app, () => {
-		const connected_app = frappe.get_doc("Connected App", frm.doc.connected_app);
-		return frappe.call({
-			doc: connected_app,
-			method: "initiate_web_application_flow",
-			args: {
-				success_uri: window.location.pathname,
-				user: frm.doc.connected_user,
-			},
-			callback: function (r) {
-				window.open(r.message, "_self");
-			},
-		});
-	});
-}
-
 function set_default_max_attachment_size(frm) {
 	if (frm.doc.__islocal && !frm.doc["attachment_limit"]) {
 		frappe.call({
@@ -159,10 +142,6 @@ frappe.ui.form.on("Email Account", {
 			delete frappe.route_flags.delete_user_from_locals;
 			delete locals["User"][frappe.route_flags.linked_user];
 		}
-	},
-
-	authorize_api_access: function (frm) {
-		oauth_access(frm);
 	},
 
 	show_oauth_authorization_message(frm) {
