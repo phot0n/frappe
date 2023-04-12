@@ -331,10 +331,8 @@ class EmailServer:
 				raise LoginLimitExceeded(e)
 
 			else:
-				# log performs rollback and logs error in Error Log
 				frappe.log_error("Unable to fetch email", self.make_error_msg(msg_num, incoming_mail))
 				self.errors = True
-				frappe.db.rollback()
 
 				if not cint(self.settings.use_imap):
 					self.pop.dele(msg_num)
