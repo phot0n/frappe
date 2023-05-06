@@ -49,10 +49,7 @@ def enqueue_events_for_all_sites() -> None:
 		# Don't add task to queue if webserver is in restart mode
 		return
 
-	with frappe.init_site():
-		sites = get_sites()
-
-	for site in sites:
+	for site in get_sites():
 		try:
 			enqueue_events_for_site(site=site)
 		except Exception:
