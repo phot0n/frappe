@@ -936,8 +936,10 @@ class DatabaseQuery:
 		)
 
 	def add_user_permissions(self, user_permissions):
-		doctype_link_fields = []
-		doctype_link_fields = self.doctype_meta.get_link_fields()
+		doctype_link_fields = self.doctype_meta.get_link_fields() or []
+		match_filters = {}
+		match_conditions = []
+		strict = frappe.get_system_settings("apply_strict_user_permissions")
 
 		# append current doctype with fieldname as 'name' as first link field
 		doctype_link_fields.append(
@@ -947,8 +949,6 @@ class DatabaseQuery:
 			)
 		)
 
-		match_filters = {}
-		match_conditions = []
 		for df in doctype_link_fields:
 			if df.get("ignore_user_permissions"):
 				continue
@@ -957,9 +957,8 @@ class DatabaseQuery:
 
 			if user_permission_values:
 				docs = []
-				if frappe.get_system_settings("apply_strict_user_permissions"):
-					condition = ""
-				else:
+				condition = ""
+				if not strict:
 					empty_value_condition = cast_name(
 						f"ifnull(`tab{self.doctype}`.`{df.get('fieldname')}`, '')=''"
 					)
@@ -988,7 +987,8 @@ class DatabaseQuery:
 					match_filters[df.get("options")] = docs
 
 		if match_conditions:
-			self.match_conditions.append(" and ".join(match_conditions))
+			joiner = " and " if strict else " or "
+			self.match_conditions.append(joiner.join(match_conditions))
 
 		if match_filters:
 			self.match_filters.append(match_filters)
