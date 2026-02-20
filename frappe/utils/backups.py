@@ -4,7 +4,9 @@ import contextlib
 
 # imports - standard imports
 import gzip
+import json
 import os
+import subprocess
 import sys
 from calendar import timegm
 from collections.abc import Callable
@@ -29,6 +31,9 @@ _verbose = verbose
 base_tables = ["__Auth", "__global_search", "__UserSettings"]
 
 BACKUP_ENCRYPTION_CONFIG_KEY = "backup_encryption_key"
+
+# S3 Configuration Keys
+S3_BACKUP_CONFIG_KEY = "s3_backup_config"
 
 
 class BackupGenerator:
@@ -60,6 +65,8 @@ class BackupGenerator:
 		verbose=False,
 		old_backup_metadata=False,
 		rollback_callback=None,
+		stream_to_s3=False,
+		s3_config=None,
 	):
 		global _verbose
 		self.compress_files = compress_files or compress
@@ -82,12 +89,52 @@ class BackupGenerator:
 		self.old_backup_metadata = old_backup_metadata
 		self.rollback_callback = rollback_callback
 
+		# S3 Streaming Configuration
+		self.stream_to_s3 = stream_to_s3
+		self.s3_config = s3_config or self._get_s3_config_from_site()
+
+		if self.stream_to_s3:
+			self._validate_s3_config()
+			self._validate_rclone()
+
 		site = frappe.local.site or frappe.generate_hash(length=8)
 		self.site_slug = site.replace(".", "_")
 		self.verbose = verbose
 		self.setup_backup_directory()
 		self.setup_backup_tables()
 		_verbose = verbose
+
+	def _get_s3_config_from_site(self):
+		"""Get S3 configuration from site config"""
+		return frappe.conf.get(S3_BACKUP_CONFIG_KEY, {})
+
+	def _validate_s3_config(self):
+		"""Validate required S3 configuration parameters"""
+		if not self.s3_config:
+			frappe.throw(_("S3 configuration is required for streaming backups to S3"))
+
+		required_fields = ["remote_name"]
+		missing_fields = [field for field in required_fields if not self.s3_config.get(field)]
+
+		if missing_fields:
+			frappe.throw(_("Missing required S3 configuration fields: {0}").format(", ".join(missing_fields)))
+
+	def _validate_rclone(self):
+		"""Check if rclone is available"""
+		if not which("rclone"):
+			frappe.throw(
+				_("rclone not found in PATH! This is required to stream backups to S3"),
+				exc=frappe.ExecutableNotFound,
+			)
+
+	def _get_rclone_remote_path(self, filename):
+		"""Generate rclone remote path"""
+		remote_name = self.s3_config["remote_name"]
+		prefix = self.s3_config.get("prefix", "backups/")
+
+		# Construct path: remote:prefix/site_slug/filename
+		path = f"{remote_name}:{prefix}{self.site_slug}/{filename}"
+		return path
 
 	def setup_backup_directory(self):
 		specified = (
@@ -165,12 +212,16 @@ class BackupGenerator:
 		# Check if file exists and is less than a day old
 		# If not Take Dump
 		if not force:
-			(
-				last_db,
-				last_file,
-				last_private_file,
-				site_config_backup_path,
-			) = self.get_recent_backup(older_than)
+			if self.stream_to_s3:
+				# For S3, always force new backup (no local file checking)
+				last_db, last_file, last_private_file, site_config_backup_path = (False, False, False, False)
+			else:
+				(
+					last_db,
+					last_file,
+					last_private_file,
+					site_config_backup_path,
+				) = self.get_recent_backup(older_than)
 		else:
 			last_db, last_file, last_private_file, site_config_backup_path = (
 				False,
@@ -196,7 +247,14 @@ class BackupGenerator:
 				)
 
 			if frappe.get_system_settings("encrypt_backup"):
-				self.backup_encryption()
+				if self.stream_to_s3:
+					click.secho(
+						"Encryption is not yet supported with S3 streaming. "
+						"Backups will be uploaded without encryption.",
+						fg="yellow",
+					)
+				else:
+					self.backup_encryption()
 
 		else:
 			self.backup_path_files = last_file
@@ -207,23 +265,30 @@ class BackupGenerator:
 	def set_backup_file_name(self):
 		partial = "-partial" if self.partial else ""
 		ext = "tgz" if self.compress_files else "tar"
-		enc = "-enc" if frappe.get_system_settings("encrypt_backup") else ""
+		enc = "-enc" if frappe.get_system_settings("encrypt_backup") and not self.stream_to_s3 else ""
 		self.todays_date = now_datetime().strftime("%Y%m%d_%H%M%S")
 
 		for_conf = f"{self.todays_date}-{self.site_slug}-site_config_backup{enc}.json"
 		for_db = f"{self.todays_date}-{self.site_slug}{partial}-database{enc}.sql.gz"
 		for_public_files = f"{self.todays_date}-{self.site_slug}-files{enc}.{ext}"
 		for_private_files = f"{self.todays_date}-{self.site_slug}-private-files{enc}.{ext}"
-		backup_path = self.backup_path or get_backup_path()
 
-		if not self.backup_path_conf:
-			self.backup_path_conf = os.path.join(backup_path, for_conf)
-		if not self.backup_path_db:
-			self.backup_path_db = os.path.join(backup_path, for_db)
-		if not self.backup_path_files:
-			self.backup_path_files = os.path.join(backup_path, for_public_files)
-		if not self.backup_path_private_files:
-			self.backup_path_private_files = os.path.join(backup_path, for_private_files)
+		if self.stream_to_s3:
+			# For S3, use rclone remote paths
+			self.backup_path_conf = self._get_rclone_remote_path(for_conf)
+			self.backup_path_db = self._get_rclone_remote_path(for_db)
+			self.backup_path_files = self._get_rclone_remote_path(for_public_files)
+			self.backup_path_private_files = self._get_rclone_remote_path(for_private_files)
+		else:
+			backup_path = self.backup_path or get_backup_path()
+			if not self.backup_path_conf:
+				self.backup_path_conf = os.path.join(backup_path, for_conf)
+			if not self.backup_path_db:
+				self.backup_path_db = os.path.join(backup_path, for_db)
+			if not self.backup_path_files:
+				self.backup_path_files = os.path.join(backup_path, for_public_files)
+			if not self.backup_path_private_files:
+				self.backup_path_private_files = os.path.join(backup_path, for_private_files)
 
 	def backup_encryption(self):
 		"""
@@ -307,15 +372,29 @@ class BackupGenerator:
 		summary = {
 			"config": {
 				"path": self.backup_path_conf,
-				"size": get_file_size(self.backup_path_conf, format=True),
+				"size": self._get_backup_size(self.backup_path_conf),
 			},
 			"database": {
 				"path": self.backup_path_db,
-				"size": get_file_size(self.backup_path_db, format=True),
+				"size": self._get_backup_size(self.backup_path_db),
 			},
 		}
 
-		if os.path.exists(self.backup_path_files) and os.path.exists(self.backup_path_private_files):
+		if self.stream_to_s3:
+			# For S3, include file backups
+			summary.update(
+				{
+					"public": {
+						"path": self.backup_path_files,
+						"size": self._get_backup_size(self.backup_path_files),
+					},
+					"private": {
+						"path": self.backup_path_private_files,
+						"size": self._get_backup_size(self.backup_path_private_files),
+					},
+				}
+			)
+		elif os.path.exists(self.backup_path_files) and os.path.exists(self.backup_path_private_files):
 			summary.update(
 				{
 					"public": {
@@ -331,6 +410,28 @@ class BackupGenerator:
 
 		return summary
 
+	def _get_backup_size(self, path):
+		"""Get size of backup, handling both local files and rclone remotes"""
+		if self.stream_to_s3:
+			try:
+				# Use rclone to get file size
+				result = subprocess.run(
+					["rclone", "size", path, "--json"],
+					capture_output=True,
+					text=True,
+					check=True,
+					verbose=self.verbose,
+				)
+				data = json.loads(result.stdout)
+				size_bytes = data.get("bytes", 0)
+				return get_file_size(size_bytes, format=True)
+			except Exception as e:
+				if self.verbose:
+					print(f"Could not get size for {path}: {e}")
+				return "-"
+
+		return get_file_size(path, format=True)
+
 	def print_summary(self):
 		backup_summary = self.get_summary()
 		print(f"Backup Summary for {frappe.local.site} at {now()}")
@@ -340,21 +441,23 @@ class BackupGenerator:
 
 		for _type, info in backup_summary.items():
 			template = f"{{0:{title}}}: {{1:{path}}} {{2}}"
+			# TODO: abspath wont work for s3
 			print(template.format(_type.title(), os.path.abspath(info["path"]), info["size"]))
 
 	def backup_files(self):
+		"""Backup public and private files, streaming to S3 if configured"""
 		for folder in ("public", "private"):
 			files_path = frappe.get_site_path(folder, "files")
 			backup_path = self.backup_path_files if folder == "public" else self.backup_path_private_files
 
-			if self.compress_files:
-				cmd_string = "set -o pipefail; tar cf - {1} | gzip > {0}"
+			if self.stream_to_s3:
+				command = self._get_stream_files_to_s3_cmd(files_path, backup_path)
 			else:
-				cmd_string = "tar -cf {0} {1}"
+				command = self._get_backup_files_locally_cmd(files_path, backup_path)
 
 			try:
 				frappe.utils.execute_in_shell(
-					cmd_string.format(backup_path, files_path),
+					command,
 					verbose=self.verbose,
 					low_priority=True,
 					check_exit_code=True,
@@ -368,12 +471,38 @@ class BackupGenerator:
 				else:
 					raise e
 
+	def _backup_files_locally(self, files_path, backup_path):
+		"""Backup files to local filesystem"""
+		if self.compress_files:
+			cmd_string = "set -o pipefail; tar cf - {1} | gzip > {0}"
+		else:
+			cmd_string = "tar -cf {0} {1}"
+
+		return cmd_string.format(backup_path, files_path)
+
+	def _stream_files_to_s3(self, files_path, remote_path):
+		if self.compress_files:
+			cmd_string = "set -o pipefail; tar cf - {0} | gzip | rclone rcat {1}"
+		else:
+			cmd_string = "set -o pipefail; tar cf - {0} | rclone rcat {1}"
+
+		return cmd_string.format(files_path, remote_path)
+
 	def copy_site_config(self):
-		site_config_backup_path = self.backup_path_conf
 		site_config_path = os.path.join(frappe.get_site_path(), "site_config.json")
 
-		with open(site_config_backup_path, "w") as n, open(site_config_path) as c:
-			n.write(c.read())
+		if self.stream_to_s3:
+			# Upload site config to S3 using rclone
+			command = f"rclone copyto {site_config_path} {self.backup_path_conf}"
+			frappe.utils.execute_in_shell(
+				command,
+				verbose=self.verbose,
+				check_exit_code=True,
+			)
+		else:
+			# Save locally
+			with open(self.backup_path_conf, "w") as n, open(site_config_path) as c:
+				n.write(c.read())
 
 	def take_dump(self):
 		if self.db_type == "sqlite":
@@ -382,10 +511,13 @@ class BackupGenerator:
 			import frappe
 
 			db_path = Path(frappe.get_site_path()) / "db" / f"{self.db_name}.db"
-			command = f"gzip -k {db_path} -c > {self.backup_path_db}"
-
-			frappe.utils.execute_in_shell(command, low_priority=True, check_exit_code=True)
-
+			if self.stream_to_s3:
+				command = f"gzip -k {db_path} -c | rclone rcat {self.backup_path_db}"
+			else:
+				command = f"gzip -k {db_path} -c > {self.backup_path_db}"
+			frappe.utils.execute_in_shell(
+				command, low_priority=True, check_exit_code=True, verbose=self.verbose
+			)
 			return
 
 		import shlex
@@ -430,11 +562,6 @@ class BackupGenerator:
 				]
 			)
 
-		generated_header = "\n".join(f"-- {x}" for x in database_header_content) + "\n"
-
-		with gzip.open(self.backup_path_db, "wt") as f:
-			f.write(generated_header)
-
 		cmd = []
 		extra = []
 		if self.db_type == "mariadb":
@@ -469,37 +596,22 @@ class BackupGenerator:
 		cmd.append(bin)
 		cmd.append(shlex.join(args))
 
-		command = " ".join(["set -o pipefail;", *cmd, "|", gzip_exc, ">>", self.backup_path_db])
+		cmd_parts = ["set -o pipefail;", *cmd, "|", gzip_exc]
+		if self.stream_to_s3:
+			# TODO: add generated header
+			cmd_parts.extend(["|", "rclone rcat", self.backup_path_db])
+		else:
+			generated_header = "\n".join(f"-- {x}" for x in database_header_content) + "\n"
+			with gzip.open(self.backup_path_db, "wt") as f:
+				f.write(generated_header)
+
+			cmd_parts.extend([">>", self.backup_path_db])
+		command = " ".join(cmd_parts)
+
 		if self.verbose:
 			print(command.replace(shlex.quote(self.password), "*" * 10) + "\n")
 
 		frappe.utils.execute_in_shell(command, low_priority=True, check_exit_code=True)
-
-	def send_email(self):
-		"""
-		Sends the link to backup file located at erpnext/backups
-		"""
-		from frappe.email import get_system_managers
-
-		recipient_list = get_system_managers()
-		db_backup_url = get_url(os.path.join("backups", os.path.basename(self.backup_path_db)))
-		files_backup_url = get_url(os.path.join("backups", os.path.basename(self.backup_path_files)))
-
-		msg = f"""Hello,
-
-Your backups are ready to be downloaded.
-
-1. [Click here to download the database backup]({db_backup_url})
-2. [Click here to download the files backup]({files_backup_url})
-
-This link will be valid for 24 hours. A new backup will be available for
-download only after 24 hours."""
-
-		datetime_str = datetime.fromtimestamp(os.stat(self.backup_path_db).st_ctime)
-		subject = datetime_str.strftime("%d/%m/%Y %H:%M:%S") + """ - Backup ready to be downloaded"""
-
-		frappe.sendmail(recipients=recipient_list, message=msg, subject=subject)
-		return recipient_list
 
 	def add_to_rollback(self, func: Callable) -> None:
 		"""
@@ -522,12 +634,35 @@ download only after 24 hours."""
 		try:
 			step()
 		except Exception as e:
-			for path in paths:
-				if os.path.exists(path):
-					os.remove(path)
+			if self.stream_to_s3:
+				# Delete from S3 using rclone
+				for path in paths:
+					try:
+						subprocess.run(["rclone", "deletefile", path], check=False, capture_output=True)
+						if self.verbose:
+							print(f"Deleted failed backup from S3: {path}")
+					except Exception as del_err:
+						if self.verbose:
+							print(f"Failed to delete S3 object {path}: {del_err}")
+			else:
+				# Delete local files
+				for path in paths:
+					if os.path.exists(path):
+						os.remove(path)
 			raise e
-		for path in paths:
-			self.add_to_rollback(lambda: os.remove(path))
+
+		if self.stream_to_s3:
+			# Add S3 deletion to rollback
+			for path in paths:
+				self.add_to_rollback(
+					lambda p=path: subprocess.run(
+						["rclone", "deletefile", p], check=False, capture_output=True
+					)
+				)
+		else:
+			# Add local file deletion to rollback
+			for path in paths:
+				self.add_to_rollback(lambda p=path: os.path.exists(p) and os.remove(p))
 
 
 def _get_tables(doctypes: list[str], existing_tables: list[str]) -> list[str]:
@@ -582,6 +717,8 @@ def scheduled_backup(
 	verbose=False,
 	old_backup_metadata=False,
 	rollback_callback=None,
+	stream_to_s3=False,
+	s3_config=None,
 ):
 	"""this function is called from scheduler
 	deletes backups older than 7 days
@@ -602,6 +739,8 @@ def scheduled_backup(
 		verbose=verbose,
 		old_backup_metadata=old_backup_metadata,
 		rollback_callback=rollback_callback,
+		stream_to_s3=stream_to_s3,
+		s3_config=s3_config,
 	)
 
 
@@ -621,8 +760,12 @@ def new_backup(
 	verbose=False,
 	old_backup_metadata=False,
 	rollback_callback=None,
+	stream_to_s3=False,
+	s3_config=None,
 ):
-	delete_temp_backups()
+	if not stream_to_s3:
+		delete_temp_backups()
+
 	odb = BackupGenerator(
 		frappe.conf.db_name,
 		frappe.conf.db_user,
@@ -643,6 +786,8 @@ def new_backup(
 		compress_files=compress,
 		old_backup_metadata=old_backup_metadata,
 		rollback_callback=rollback_callback,
+		stream_to_s3=stream_to_s3,
+		s3_config=s3_config,
 	)
 	odb.get_backup(older_than, ignore_files, force=force)
 	return odb
@@ -742,6 +887,8 @@ def backup(
 	backup_path_files=None,
 	backup_path_private_files=None,
 	backup_path_conf=None,
+	stream_to_s3=False,
+	s3_config=None,
 ):
 	"Backup"
 	odb = scheduled_backup(
@@ -751,6 +898,8 @@ def backup(
 		backup_path_private_files=backup_path_private_files,
 		backup_path_conf=backup_path_conf,
 		force=True,
+		stream_to_s3=stream_to_s3,
+		s3_config=s3_config,
 	)
 	return {
 		"backup_path_db": odb.backup_path_db,
